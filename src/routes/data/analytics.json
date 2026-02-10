@@ -1,0 +1,924 @@
+{
+  "events": [
+    {
+      "type": "chat_cleared",
+      "timestamp": 1769113719078,
+      "serverTimestamp": 1769113732127,
+      "sessionId": "sess_1lsj2xpjt1g",
+      "data": {}
+    },
+    {
+      "type": "quick_action_click",
+      "timestamp": 1769113721755,
+      "serverTimestamp": 1769113732127,
+      "sessionId": "sess_1lsj2xpjt1g",
+      "data": {
+        "action": "reorder"
+      }
+    },
+    {
+      "type": "message_sent",
+      "timestamp": 1769113721755,
+      "serverTimestamp": 1769113732127,
+      "sessionId": "sess_1lsj2xpjt1g",
+      "data": {
+        "length": 58,
+        "messageNumber": 3
+      }
+    },
+    {
+      "type": "first_response_chunk",
+      "timestamp": 1769113731286,
+      "serverTimestamp": 1769113732127,
+      "sessionId": "sess_1lsj2xpjt1g",
+      "data": {
+        "timeToFirstChunk": 9531
+      }
+    },
+    {
+      "type": "message_received",
+      "timestamp": 1769113732028,
+      "serverTimestamp": 1769113732127,
+      "sessionId": "sess_1lsj2xpjt1g",
+      "data": {
+        "responseTime": 10272,
+        "responseLength": 328
+      }
+    },
+    {
+      "type": "message_sent",
+      "timestamp": 1769113743506,
+      "serverTimestamp": 1769113763434,
+      "sessionId": "sess_1lsj2xpjt1g",
+      "data": {
+        "length": 30,
+        "messageNumber": 4
+      }
+    },
+    {
+      "type": "first_response_chunk",
+      "timestamp": 1769113754815,
+      "serverTimestamp": 1769113763434,
+      "sessionId": "sess_1lsj2xpjt1g",
+      "data": {
+        "timeToFirstChunk": 11309
+      }
+    },
+    {
+      "type": "message_received",
+      "timestamp": 1769113755012,
+      "serverTimestamp": 1769113763434,
+      "sessionId": "sess_1lsj2xpjt1g",
+      "data": {
+        "responseTime": 11505,
+        "responseLength": 177
+      }
+    },
+    {
+      "type": "quick_action_click",
+      "timestamp": 1769113893425,
+      "serverTimestamp": 1769113903633,
+      "sessionId": "sess_1lsj2xpjt1g",
+      "data": {
+        "action": "view_cart"
+      }
+    },
+    {
+      "type": "message_sent",
+      "timestamp": 1769113893425,
+      "serverTimestamp": 1769113903633,
+      "sessionId": "sess_1lsj2xpjt1g",
+      "data": {
+        "length": 28,
+        "messageNumber": 5
+      }
+    },
+    {
+      "type": "first_response_chunk",
+      "timestamp": 1769113897723,
+      "serverTimestamp": 1769113903633,
+      "sessionId": "sess_1lsj2xpjt1g",
+      "data": {
+        "timeToFirstChunk": 4298
+      }
+    },
+    {
+      "type": "message_received",
+      "timestamp": 1769113898959,
+      "serverTimestamp": 1769113903633,
+      "sessionId": "sess_1lsj2xpjt1g",
+      "data": {
+        "responseTime": 5534,
+        "responseLength": 471
+      }
+    },
+    {
+      "type": "quick_action_click",
+      "timestamp": 1769113903532,
+      "serverTimestamp": 1769113903633,
+      "sessionId": "sess_1lsj2xpjt1g",
+      "data": {
+        "action": "last_order"
+      }
+    },
+    {
+      "type": "message_sent",
+      "timestamp": 1769113903533,
+      "serverTimestamp": 1769113913887,
+      "sessionId": "sess_1lsj2xpjt1g",
+      "data": {
+        "length": 30,
+        "messageNumber": 6
+      }
+    },
+    {
+      "type": "first_response_chunk",
+      "timestamp": 1769113907805,
+      "serverTimestamp": 1769113913887,
+      "sessionId": "sess_1lsj2xpjt1g",
+      "data": {
+        "timeToFirstChunk": 4272
+      }
+    },
+    {
+      "type": "message_received",
+      "timestamp": 1769113908373,
+      "serverTimestamp": 1769113913887,
+      "sessionId": "sess_1lsj2xpjt1g",
+      "data": {
+        "responseTime": 4840,
+        "responseLength": 169
+      }
+    },
+    {
+      "type": "message_sent",
+      "timestamp": 1769114007062,
+      "serverTimestamp": 1769114033439,
+      "sessionId": "sess_1lsj2xpjt1g",
+      "data": {
+        "length": 2,
+        "messageNumber": 7
+      }
+    },
+    {
+      "type": "first_response_chunk",
+      "timestamp": 1769114010613,
+      "serverTimestamp": 1769114033439,
+      "sessionId": "sess_1lsj2xpjt1g",
+      "data": {
+        "timeToFirstChunk": 3551
+      }
+    },
+    {
+      "type": "message_received",
+      "timestamp": 1769114010828,
+      "serverTimestamp": 1769114033439,
+      "sessionId": "sess_1lsj2xpjt1g",
+      "data": {
+        "responseTime": 3766,
+        "responseLength": 124
+      }
+    },
+    {
+      "type": "chat_cleared",
+      "timestamp": 1769114642266,
+      "serverTimestamp": 1769114649910,
+      "sessionId": "sess_1lsj2xpjt1g",
+      "data": {}
+    },
+    {
+      "type": "quick_action_click",
+      "timestamp": 1769114643907,
+      "serverTimestamp": 1769114649910,
+      "sessionId": "sess_1lsj2xpjt1g",
+      "data": {
+        "action": "search_gloves"
+      }
+    },
+    {
+      "type": "message_sent",
+      "timestamp": 1769114643907,
+      "serverTimestamp": 1769114649910,
+      "sessionId": "sess_1lsj2xpjt1g",
+      "data": {
+        "length": 20,
+        "messageNumber": 8
+      }
+    },
+    {
+      "type": "first_response_chunk",
+      "timestamp": 1769114646933,
+      "serverTimestamp": 1769114649910,
+      "sessionId": "sess_1lsj2xpjt1g",
+      "data": {
+        "timeToFirstChunk": 3026
+      }
+    },
+    {
+      "type": "message_received",
+      "timestamp": 1769114649811,
+      "serverTimestamp": 1769114649910,
+      "sessionId": "sess_1lsj2xpjt1g",
+      "data": {
+        "responseTime": 5904,
+        "responseLength": 823
+      }
+    },
+    {
+      "type": "chat_cleared",
+      "timestamp": 1769114908800,
+      "serverTimestamp": 1769114917945,
+      "sessionId": "sess_1lsj2xpjt1g",
+      "data": {}
+    },
+    {
+      "type": "quick_action_click",
+      "timestamp": 1769114911550,
+      "serverTimestamp": 1769114917945,
+      "sessionId": "sess_1lsj2xpjt1g",
+      "data": {
+        "action": "search_gloves"
+      }
+    },
+    {
+      "type": "message_sent",
+      "timestamp": 1769114911551,
+      "serverTimestamp": 1769114917945,
+      "sessionId": "sess_1lsj2xpjt1g",
+      "data": {
+        "length": 20,
+        "messageNumber": 9
+      }
+    },
+    {
+      "type": "first_response_chunk",
+      "timestamp": 1769114915325,
+      "serverTimestamp": 1769114917945,
+      "sessionId": "sess_1lsj2xpjt1g",
+      "data": {
+        "timeToFirstChunk": 3774
+      }
+    },
+    {
+      "type": "message_received",
+      "timestamp": 1769114917848,
+      "serverTimestamp": 1769114917945,
+      "sessionId": "sess_1lsj2xpjt1g",
+      "data": {
+        "responseTime": 6297,
+        "responseLength": 509
+      }
+    },
+    {
+      "type": "message_sent",
+      "timestamp": 1769114920634,
+      "serverTimestamp": 1769114930905,
+      "sessionId": "sess_1lsj2xpjt1g",
+      "data": {
+        "length": 1,
+        "messageNumber": 10
+      }
+    },
+    {
+      "type": "first_response_chunk",
+      "timestamp": 1769114923838,
+      "serverTimestamp": 1769114930905,
+      "sessionId": "sess_1lsj2xpjt1g",
+      "data": {
+        "timeToFirstChunk": 3204
+      }
+    },
+    {
+      "type": "message_received",
+      "timestamp": 1769114924678,
+      "serverTimestamp": 1769114930905,
+      "sessionId": "sess_1lsj2xpjt1g",
+      "data": {
+        "responseTime": 4043,
+        "responseLength": 214
+      }
+    },
+    {
+      "type": "cart_add",
+      "timestamp": 1769114925913,
+      "serverTimestamp": 1769114930905,
+      "sessionId": "sess_1lsj2xpjt1g",
+      "data": {}
+    },
+    {
+      "type": "chatbot_closed",
+      "timestamp": 1769114930729,
+      "serverTimestamp": 1769114930905,
+      "sessionId": "sess_1lsj2xpjt1g",
+      "data": {}
+    },
+    {
+      "type": "chatbot_opened",
+      "timestamp": 1769114942593,
+      "serverTimestamp": 1769114948049,
+      "sessionId": "sess_1lsj2xpjt1g",
+      "data": {}
+    },
+    {
+      "type": "chat_cleared",
+      "timestamp": 1769114944712,
+      "serverTimestamp": 1769114948049,
+      "sessionId": "sess_1lsj2xpjt1g",
+      "data": {}
+    },
+    {
+      "type": "quick_action_click",
+      "timestamp": 1769114946078,
+      "serverTimestamp": 1769114948049,
+      "sessionId": "sess_1lsj2xpjt1g",
+      "data": {
+        "action": "reorder"
+      }
+    },
+    {
+      "type": "message_sent",
+      "timestamp": 1769114946078,
+      "serverTimestamp": 1769114948049,
+      "sessionId": "sess_1lsj2xpjt1g",
+      "data": {
+        "length": 58,
+        "messageNumber": 11
+      }
+    },
+    {
+      "type": "first_response_chunk",
+      "timestamp": 1769114947888,
+      "serverTimestamp": 1769114948049,
+      "sessionId": "sess_1lsj2xpjt1g",
+      "data": {
+        "timeToFirstChunk": 1810
+      }
+    },
+    {
+      "type": "message_received",
+      "timestamp": 1769114949087,
+      "serverTimestamp": 1769114963441,
+      "sessionId": "sess_1lsj2xpjt1g",
+      "data": {
+        "responseTime": 3009,
+        "responseLength": 191
+      }
+    },
+    {
+      "type": "message_sent",
+      "timestamp": 1769114950941,
+      "serverTimestamp": 1769114963442,
+      "sessionId": "sess_1lsj2xpjt1g",
+      "data": {
+        "length": 2,
+        "messageNumber": 12
+      }
+    },
+    {
+      "type": "first_response_chunk",
+      "timestamp": 1769114960969,
+      "serverTimestamp": 1769114963442,
+      "sessionId": "sess_1lsj2xpjt1g",
+      "data": {
+        "timeToFirstChunk": 10028
+      }
+    },
+    {
+      "type": "message_received",
+      "timestamp": 1769114967154,
+      "serverTimestamp": 1769114981211,
+      "sessionId": "sess_1lsj2xpjt1g",
+      "data": {
+        "responseTime": 16213,
+        "responseLength": 547
+      }
+    },
+    {
+      "type": "cart_add_error",
+      "timestamp": 1769114967550,
+      "serverTimestamp": 1769114981211,
+      "sessionId": "sess_1lsj2xpjt1g",
+      "data": {
+        "error": "Failed"
+      }
+    },
+    {
+      "type": "message_sent",
+      "timestamp": 1769114977445,
+      "serverTimestamp": 1769114981211,
+      "sessionId": "sess_1lsj2xpjt1g",
+      "data": {
+        "length": 48,
+        "messageNumber": 13
+      }
+    },
+    {
+      "type": "first_response_chunk",
+      "timestamp": 1769114980248,
+      "serverTimestamp": 1769114981211,
+      "sessionId": "sess_1lsj2xpjt1g",
+      "data": {
+        "timeToFirstChunk": 2803
+      }
+    },
+    {
+      "type": "message_received",
+      "timestamp": 1769114981111,
+      "serverTimestamp": 1769114981211,
+      "sessionId": "sess_1lsj2xpjt1g",
+      "data": {
+        "responseTime": 3666,
+        "responseLength": 153
+      }
+    },
+    {
+      "type": "message_sent",
+      "timestamp": 1769114983462,
+      "serverTimestamp": 1769114993386,
+      "sessionId": "sess_1lsj2xpjt1g",
+      "data": {
+        "length": 1,
+        "messageNumber": 14
+      }
+    },
+    {
+      "type": "first_response_chunk",
+      "timestamp": 1769114987211,
+      "serverTimestamp": 1769114993386,
+      "sessionId": "sess_1lsj2xpjt1g",
+      "data": {
+        "timeToFirstChunk": 3749
+      }
+    },
+    {
+      "type": "message_received",
+      "timestamp": 1769114989015,
+      "serverTimestamp": 1769114993386,
+      "sessionId": "sess_1lsj2xpjt1g",
+      "data": {
+        "responseTime": 5552,
+        "responseLength": 396
+      }
+    },
+    {
+      "type": "cart_add",
+      "timestamp": 1769114989977,
+      "serverTimestamp": 1769114993386,
+      "sessionId": "sess_1lsj2xpjt1g",
+      "data": {}
+    },
+    {
+      "type": "chatbot_loaded",
+      "timestamp": 1769115110700,
+      "serverTimestamp": 1769115121067,
+      "sessionId": "sess_2msvomd5dll",
+      "data": {}
+    },
+    {
+      "type": "chatbot_opened",
+      "timestamp": 1769115114934,
+      "serverTimestamp": 1769115121067,
+      "sessionId": "sess_2msvomd5dll",
+      "data": {}
+    },
+    {
+      "type": "chat_cleared",
+      "timestamp": 1769115118561,
+      "serverTimestamp": 1769115121067,
+      "sessionId": "sess_2msvomd5dll",
+      "data": {}
+    },
+    {
+      "type": "quick_action_click",
+      "timestamp": 1769115120912,
+      "serverTimestamp": 1769115121067,
+      "sessionId": "sess_2msvomd5dll",
+      "data": {
+        "action": "view_cart"
+      }
+    },
+    {
+      "type": "message_sent",
+      "timestamp": 1769115120912,
+      "serverTimestamp": 1769115121067,
+      "sessionId": "sess_2msvomd5dll",
+      "data": {
+        "length": 28,
+        "messageNumber": 1
+      }
+    },
+    {
+      "type": "first_response_chunk",
+      "timestamp": 1769115123197,
+      "serverTimestamp": 1769115138818,
+      "sessionId": "sess_2msvomd5dll",
+      "data": {
+        "timeToFirstChunk": 2285
+      }
+    },
+    {
+      "type": "message_received",
+      "timestamp": 1769115124416,
+      "serverTimestamp": 1769115138818,
+      "sessionId": "sess_2msvomd5dll",
+      "data": {
+        "responseTime": 3503,
+        "responseLength": 217,
+        "timeToFirstChunk": 2285
+      }
+    },
+    {
+      "type": "voice_input_start",
+      "timestamp": 1769115133941,
+      "serverTimestamp": 1769115138818,
+      "sessionId": "sess_2msvomd5dll",
+      "data": {}
+    },
+    {
+      "type": "voice_input_complete",
+      "timestamp": 1769115137307,
+      "serverTimestamp": 1769115138818,
+      "sessionId": "sess_2msvomd5dll",
+      "data": {}
+    },
+    {
+      "type": "message_sent",
+      "timestamp": 1769115138666,
+      "serverTimestamp": 1769115138818,
+      "sessionId": "sess_2msvomd5dll",
+      "data": {
+        "length": 20,
+        "messageNumber": 2
+      }
+    },
+    {
+      "type": "first_response_chunk",
+      "timestamp": 1769115142659,
+      "serverTimestamp": 1769115170881,
+      "sessionId": "sess_2msvomd5dll",
+      "data": {
+        "timeToFirstChunk": 3993
+      }
+    },
+    {
+      "type": "message_received",
+      "timestamp": 1769115150530,
+      "serverTimestamp": 1769115170881,
+      "sessionId": "sess_2msvomd5dll",
+      "data": {
+        "responseTime": 11864,
+        "responseLength": 900,
+        "timeToFirstChunk": 3993
+      }
+    },
+    {
+      "type": "chatbot_loaded",
+      "timestamp": 1769341490254,
+      "sessionId": "sess_vuut0mtskq",
+      "url": "/account/order",
+      "referrer": "dentalkiosk.de",
+      "serverTimestamp": 1769341532041
+    },
+    {
+      "type": "chatbot_opened",
+      "timestamp": 1769341491802,
+      "sessionId": "sess_vuut0mtskq",
+      "serverTimestamp": 1769341532041
+    },
+    {
+      "type": "chat_cleared",
+      "timestamp": 1769341496444,
+      "sessionId": "sess_vuut0mtskq",
+      "serverTimestamp": 1769341532041
+    },
+    {
+      "type": "chatbot_loaded",
+      "timestamp": 1769341532331,
+      "sessionId": "sess_qzv5b8owlc",
+      "url": "/account/order",
+      "referrer": "dentalkiosk.de",
+      "serverTimestamp": 1769341548442
+    },
+    {
+      "type": "chatbot_opened",
+      "timestamp": 1769341535238,
+      "sessionId": "sess_qzv5b8owlc",
+      "serverTimestamp": 1769341548442
+    },
+    {
+      "type": "quick_action_click",
+      "timestamp": 1769341537774,
+      "sessionId": "sess_qzv5b8owlc",
+      "action": "search_gloves",
+      "message": "Ich suche Handschuhe",
+      "serverTimestamp": 1769341548442
+    },
+    {
+      "type": "message_sent",
+      "timestamp": 1769341537774,
+      "sessionId": "sess_qzv5b8owlc",
+      "question": "Ich suche Handschuhe",
+      "length": 20,
+      "messageNumber": 1,
+      "isQuickAction": true,
+      "serverTimestamp": 1769341548442
+    },
+    {
+      "type": "first_response_chunk",
+      "timestamp": 1769341548294,
+      "sessionId": "sess_qzv5b8owlc",
+      "timeToFirstChunk": 10520,
+      "serverTimestamp": 1769341548442
+    },
+    {
+      "type": "message_received",
+      "timestamp": 1769341554404,
+      "sessionId": "sess_qzv5b8owlc",
+      "responseTime": 16630,
+      "responseLength": 485,
+      "timeToFirstChunk": 10520,
+      "serverTimestamp": 1769341562490
+    },
+    {
+      "type": "message_sent",
+      "timestamp": 1769341556917,
+      "sessionId": "sess_qzv5b8owlc",
+      "question": "5",
+      "length": 1,
+      "messageNumber": 2,
+      "isQuickAction": false,
+      "serverTimestamp": 1769341562490
+    },
+    {
+      "type": "first_response_chunk",
+      "timestamp": 1769341561340,
+      "sessionId": "sess_qzv5b8owlc",
+      "timeToFirstChunk": 4423,
+      "serverTimestamp": 1769341562490
+    },
+    {
+      "type": "message_received",
+      "timestamp": 1769341565497,
+      "sessionId": "sess_qzv5b8owlc",
+      "responseTime": 8580,
+      "responseLength": 313,
+      "timeToFirstChunk": 4423,
+      "serverTimestamp": 1769341592436
+    },
+    {
+      "type": "message_sent",
+      "timestamp": 1769341576476,
+      "sessionId": "sess_qzv5b8owlc",
+      "question": "2",
+      "length": 1,
+      "messageNumber": 3,
+      "isQuickAction": false,
+      "serverTimestamp": 1769341592436
+    },
+    {
+      "type": "first_response_chunk",
+      "timestamp": 1769341585294,
+      "sessionId": "sess_qzv5b8owlc",
+      "timeToFirstChunk": 8818,
+      "serverTimestamp": 1769341592436
+    },
+    {
+      "type": "message_received",
+      "timestamp": 1769341589863,
+      "sessionId": "sess_qzv5b8owlc",
+      "responseTime": 13387,
+      "responseLength": 347,
+      "timeToFirstChunk": 8818,
+      "serverTimestamp": 1769341592436
+    },
+    {
+      "type": "message_sent",
+      "timestamp": 1769341598453,
+      "sessionId": "sess_qzv5b8owlc",
+      "question": "Handschuhe Packung 50 Stück ellenbogenlang, blau",
+      "length": 48,
+      "messageNumber": 4,
+      "isQuickAction": false,
+      "serverTimestamp": 1769341612662
+    },
+    {
+      "type": "first_response_chunk",
+      "timestamp": 1769341605027,
+      "sessionId": "sess_qzv5b8owlc",
+      "timeToFirstChunk": 6573,
+      "serverTimestamp": 1769341612662
+    },
+    {
+      "type": "message_received",
+      "timestamp": 1769341606309,
+      "sessionId": "sess_qzv5b8owlc",
+      "responseTime": 7856,
+      "responseLength": 167,
+      "timeToFirstChunk": 6573,
+      "serverTimestamp": 1769341612662
+    },
+    {
+      "type": "message_sent",
+      "timestamp": 1769341608671,
+      "sessionId": "sess_qzv5b8owlc",
+      "question": "ja",
+      "length": 2,
+      "messageNumber": 5,
+      "isQuickAction": false,
+      "serverTimestamp": 1769341612662
+    },
+    {
+      "type": "first_response_chunk",
+      "timestamp": 1769341612512,
+      "sessionId": "sess_qzv5b8owlc",
+      "timeToFirstChunk": 3841,
+      "serverTimestamp": 1769341612662
+    },
+    {
+      "type": "message_received",
+      "timestamp": 1769341614790,
+      "sessionId": "sess_qzv5b8owlc",
+      "responseTime": 6118,
+      "responseLength": 472,
+      "timeToFirstChunk": 3841,
+      "serverTimestamp": 1769341623485
+    },
+    {
+      "type": "cart_add",
+      "timestamp": 1769341615811,
+      "sessionId": "sess_qzv5b8owlc",
+      "productId": "245e80702bf543679c4d1954822f0cf9",
+      "quantity": 1,
+      "serverTimestamp": 1769341623485
+    },
+    {
+      "type": "cart_add",
+      "timestamp": 1769341617380,
+      "sessionId": "sess_qzv5b8owlc",
+      "productId": "245e80702bf543679c4d1954822f0cf9",
+      "quantity": 1,
+      "serverTimestamp": 1769341623485
+    },
+    {
+      "type": "image/png",
+      "timestamp": 1769341678394,
+      "sessionId": "sess_qzv5b8owlc",
+      "size": 71665,
+      "serverTimestamp": 1769341682502
+    },
+    {
+      "type": "message_sent",
+      "timestamp": 1769341682917,
+      "sessionId": "sess_qzv5b8owlc",
+      "question": "1 STÜCK",
+      "length": 7,
+      "messageNumber": 6,
+      "isQuickAction": false,
+      "serverTimestamp": 1769341698634
+    },
+    {
+      "type": "first_response_chunk",
+      "timestamp": 1769341687152,
+      "sessionId": "sess_qzv5b8owlc",
+      "timeToFirstChunk": 4235,
+      "serverTimestamp": 1769341698634
+    },
+    {
+      "type": "message_received",
+      "timestamp": 1769341687154,
+      "sessionId": "sess_qzv5b8owlc",
+      "responseTime": 4236,
+      "responseLength": 136,
+      "timeToFirstChunk": 4235,
+      "serverTimestamp": 1769341698634
+    },
+    {
+      "type": "suggestion_confirm",
+      "timestamp": 1769341697483,
+      "sessionId": "sess_qzv5b8owlc",
+      "selectionId": "f0ac2a2b-2a67-45a9-8f9c-b09b8c698e54",
+      "productId": "2ba5f8c6ad004733a8679a38e7136df4",
+      "qty": 1,
+      "serverTimestamp": 1769341698634
+    },
+    {
+      "type": "cart_add",
+      "timestamp": 1769341698534,
+      "sessionId": "sess_qzv5b8owlc",
+      "productId": "2ba5f8c6ad004733a8679a38e7136df4",
+      "quantity": 1,
+      "serverTimestamp": 1769341698634
+    },
+    {
+      "type": "chatbot_closed",
+      "timestamp": 1769341715542,
+      "sessionId": "sess_qzv5b8owlc",
+      "serverTimestamp": 1769341743487
+    },
+    {
+      "type": "chatbot_opened",
+      "timestamp": 1769341722889,
+      "sessionId": "sess_qzv5b8owlc",
+      "serverTimestamp": 1769341743487
+    }
+  ],
+  "questions": [
+    {
+      "question": "Ich suche Handschuhe",
+      "timestamp": 1769341537774,
+      "sessionId": "sess_qzv5b8owlc",
+      "isQuickAction": true,
+      "isVoiceInput": false,
+      "length": 20
+    },
+    {
+      "question": "5",
+      "timestamp": 1769341556917,
+      "sessionId": "sess_qzv5b8owlc",
+      "isQuickAction": false,
+      "isVoiceInput": false,
+      "length": 1
+    },
+    {
+      "question": "2",
+      "timestamp": 1769341576476,
+      "sessionId": "sess_qzv5b8owlc",
+      "isQuickAction": false,
+      "isVoiceInput": false,
+      "length": 1
+    },
+    {
+      "question": "Handschuhe Packung 50 Stück ellenbogenlang, blau",
+      "timestamp": 1769341598453,
+      "sessionId": "sess_qzv5b8owlc",
+      "isQuickAction": false,
+      "isVoiceInput": false,
+      "length": 48
+    },
+    {
+      "question": "ja",
+      "timestamp": 1769341608671,
+      "sessionId": "sess_qzv5b8owlc",
+      "isQuickAction": false,
+      "isVoiceInput": false,
+      "length": 2
+    },
+    {
+      "question": "1 STÜCK",
+      "timestamp": 1769341682917,
+      "sessionId": "sess_qzv5b8owlc",
+      "isQuickAction": false,
+      "isVoiceInput": false,
+      "length": 7
+    }
+  ],
+  "aggregates": {
+    "totalMessages": 20,
+    "totalSessions": 4,
+    "voiceInputUsed": 1,
+    "quickActionClicks": {
+      "reorder": 2,
+      "view_cart": 2,
+      "last_order": 1,
+      "search_gloves": 3
+    },
+    "responseTimes": [
+      10272,
+      11505,
+      5534,
+      4840,
+      3766,
+      5904,
+      6297,
+      4043,
+      3009,
+      16213,
+      3666,
+      5552,
+      3503,
+      11864,
+      16630,
+      8580,
+      13387,
+      7856,
+      6118,
+      4236
+    ],
+    "errors": 1,
+    "firstChunkTimes": [
+      10520,
+      10520,
+      4423,
+      4423,
+      8818,
+      8818,
+      6573,
+      6573,
+      3841,
+      3841,
+      4235,
+      4235
+    ]
+  },
+  "lastSaved": "2026-01-25T11:49:03.487Z"
+}

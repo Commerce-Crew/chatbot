@@ -1,0 +1,1333 @@
+openapi: 3.1.0
+info:
+  title: DentalKiosk Shopware E-Commerce API
+  description: 'Complete API for the DentalKiosk chatbot middleware used with Shopware
+    6 and Dify.
+
+
+    Features:
+
+    - Product search & details
+
+    - Cart action queue (add/remove/update/clear)
+
+    - Orders lookup and reorder (by orderNumber)
+
+    - Multimodal pipeline (image -> extract -> search -> top3 -> confirm)
+
+    - Analytics ingestion + summary
+
+    '
+  version: 5.3.0
+  contact:
+    name: DentalKiosk Support
+    url: https://dentalkiosk.de
+servers:
+- url: https://cbshop.commerce-crew.com
+  description: Production Middleware Server
+- url: http://localhost:3330
+  description: Local Development
+tags:
+- name: Products
+  description: Product search and information
+- name: Cart
+  description: Shopping cart operations
+- name: Chat
+  description: Chat streaming (Shopware storefront widget)
+- name: Categories
+  description: Category navigation
+- name: Customer
+  description: Customer information
+- name: Orders
+  description: Customer order history
+- name: Files
+  description: File uploads for multimodal chat
+- name: Analytics
+  description: Lightweight analytics events from the widget
+- name: Health
+  description: Health checks
+paths:
+  /api/health:
+    get:
+      operationId: health
+      summary: Health check
+      description: Simple endpoint to confirm the middleware is reachable.
+      tags:
+      - Health
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+                  service:
+                    type: string
+                  timestamp:
+                    type: string
+                  requestId:
+                    type: string
+  /api/chat/stream:
+    post:
+      operationId: streamChat
+      summary: Stream chatbot response (SSE)
+      description: 'Streams the assistant response as Server-Sent Events (SSE).
+
+        This endpoint is consumed by the Shopware Twig widget.
+
+
+
+        SSE payload fields (JSON):
+
+        - text: chunk
+
+        - conversation_id: string
+
+        - cart_action: single action (legacy)
+
+        - cart_actions: array of actions (preferred)
+
+        - product_suggestions: top-3 suggestions for image->buy flow
+
+        - error: string
+
+        '
+      tags:
+      - Chat
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - message
+              properties:
+                message:
+                  type: string
+                conversation_id:
+                  type: string
+                  nullable: true
+                user:
+                  type: string
+                  description: Stable browser user id (stored in localStorage)
+                cart:
+                  $ref: '#/components/schemas/Cart'
+                context_token:
+                  type: string
+                  nullable: true
+                  description: Shopware context token (if logged-in)
+                image:
+                  type: string
+                  nullable: true
+                  description: Base64 data URL of an image (optional)
+      responses:
+        '200':
+          description: SSE stream
+          content:
+            text/event-stream:
+              schema:
+                type: string
+  /api/analytics:
+    post:
+      operationId: ingestAnalytics
+      summary: Ingest analytics events batch
+      tags:
+      - Analytics
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - events
+              properties:
+                events:
+                  type: array
+                  items:
+                    type: object
+      responses:
+        '200':
+          description: Saved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  received:
+                    type: integer
+    get:
+      operationId: getAnalytics
+      summary: Get aggregated analytics and recent events
+      tags:
+      - Analytics
+      responses:
+        '200':
+          description: Aggregated analytics
+          content:
+            application/json:
+              schema:
+                type: object
+  /api/analytics/questions:
+    get:
+      operationId: getAnalyticsQuestions
+      summary: Get recent questions and top repeated questions
+      tags:
+      - Analytics
+      parameters:
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 100
+      responses:
+        '200':
+          description: Questions
+          content:
+            application/json:
+              schema:
+                type: object
+  /api/analytics/performance:
+    get:
+      operationId: getAnalyticsPerformance
+      summary: Get response time performance metrics
+      tags:
+      - Analytics
+      responses:
+        '200':
+          description: Performance stats
+          content:
+            application/json:
+              schema:
+                type: object
+  /api/files/upload:
+    post:
+      operationId: uploadFile
+      summary: Upload a file (multipart)
+      description: 'Upload a file that can be referenced by the chatbot.
+
+        This is optional and can be used for future enhancements.
+
+        '
+      tags:
+      - Files
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+              - file
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        '200':
+          description: Uploaded
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  id:
+                    type: string
+                  name:
+                    type: string
+                  type:
+                    type: string
+                  size:
+                    type: integer
+                  base64:
+                    type: string
+  /api/products/search:
+    post:
+      operationId: searchProducts
+      summary: Search for products by keyword
+      description: 'Search the product catalog using keywords. Returns product name,
+        price, image, and availability.
+
+        Use this when a customer asks about products, wants to find something, or
+        mentions a product name.
+
+        '
+      tags:
+      - Products
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - query
+              properties:
+                query:
+                  type: string
+                  description: Search term (product name, brand, category, keyword,
+                    or description)
+                  example: Handschuhe
+                limit:
+                  type: integer
+                  description: Maximum number of results (1-50)
+                  default: 10
+                  minimum: 1
+                  maximum: 50
+                page:
+                  type: integer
+                  description: Page number for pagination
+                  default: 1
+                  minimum: 1
+      responses:
+        '200':
+          description: Search results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductListResponse'
+  /api/products/suggest:
+    post:
+      operationId: suggestProducts
+      summary: Get product suggestions (autocomplete)
+      description: Quick product suggestions for autocomplete. Use for real-time search
+        assistance.
+      tags:
+      - Products
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - query
+              properties:
+                query:
+                  type: string
+                  description: Partial search term
+                  minLength: 2
+                limit:
+                  type: integer
+                  default: 5
+      responses:
+        '200':
+          description: Product suggestions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductListResponse'
+  /api/products/{productId}:
+    get:
+      operationId: getProductDetails
+      summary: Get detailed product information
+      description: 'Retrieve full product details including variants, properties,
+        dimensions, and stock status.
+
+        Use when customer wants more details about a product found in search.
+
+        '
+      tags:
+      - Products
+      parameters:
+      - name: productId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Shopware product UUID
+      responses:
+        '200':
+          description: Product details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductDetailsResponse'
+        '404':
+          description: Product not found
+  /api/products/{productId}/stock:
+    get:
+      operationId: checkProductStock
+      summary: Check product stock availability
+      description: Verify if a product is in stock and get current quantity available.
+      tags:
+      - Products
+      parameters:
+      - name: productId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Shopware product UUID
+      responses:
+        '200':
+          description: Stock information
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  productId:
+                    type: string
+                  name:
+                    type: string
+                  available:
+                    type: boolean
+                  inStock:
+                    type: boolean
+                  stock:
+                    type: integer
+                    description: Available quantity
+                  availableStock:
+                    type: integer
+                  isCloseout:
+                    type: boolean
+                    description: If true, product cannot be oversold
+  /api/cart/summary:
+    post:
+      operationId: getCartSummary
+      summary: Get current cart summary
+      description: 'Returns a simplified cart object (line item ids, quantities and
+        totals) using the Shopware Store API.
+
+        This endpoint is mainly used by the Shopware storefront widget to avoid brittle
+        HTML parsing.
+
+        '
+      tags:
+      - Cart
+      parameters:
+      - $ref: '#/components/parameters/ContextToken'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                context_token:
+                  type: string
+                  description: Optional context token (alternative to header)
+      responses:
+        '200':
+          description: Cart summary
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CartSummaryResponse'
+  /api/cart/add:
+    post:
+      operationId: addToCart
+      summary: Add product to shopping cart
+      description: 'Queue an "add to cart" action for the currently active storefront
+        user.
+
+        The Shopware storefront widget will execute the action in the browser.
+
+
+        Notes:
+
+        - This is designed as a Dify tool endpoint.
+
+        - It does NOT directly mutate the cart on the server.
+
+        '
+      tags:
+      - Cart
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - product_id
+              properties:
+                product_id:
+                  type: string
+                  description: Shopware product UUID to add
+                productId:
+                  type: string
+                  description: Alias for product_id
+                product_name:
+                  type: string
+                  description: Optional product name (for better logs/UI)
+                quantity:
+                  type: integer
+                  description: Quantity to add
+                  default: 1
+                  minimum: 1
+                user_id:
+                  type: string
+                  description: Optional user id (conversation/userId from the widget)
+      responses:
+        '200':
+          description: Action queued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CartToolActionResponse'
+        '400':
+          description: Validation error
+  /api/cart/update:
+    post:
+      operationId: updateCartQuantity
+      summary: Update quantity of a cart item
+      description: 'Queue a "change quantity" action for the active storefront user.
+
+        The storefront widget will resolve the correct line item id and execute the
+        change.
+
+        '
+      tags:
+      - Cart
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - quantity
+              properties:
+                line_item_id:
+                  type: string
+                  description: Preferred line item id (if known)
+                lineItemId:
+                  type: string
+                  description: Alias for line_item_id
+                product_id:
+                  type: string
+                  description: Product UUID (alternative to line_item_id)
+                productId:
+                  type: string
+                  description: Alias for product_id
+                product_name:
+                  type: string
+                  description: Optional product name (for better logs/UI)
+                quantity:
+                  type: integer
+                  description: New quantity
+                  minimum: 1
+                  default: 1
+                user_id:
+                  type: string
+                  description: Optional user id (conversation/userId from the widget)
+      responses:
+        '200':
+          description: Action queued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CartToolActionResponse'
+        '400':
+          description: Validation error
+  /api/cart/remove:
+    post:
+      operationId: removeFromCart
+      summary: Remove an item from cart
+      description: 'Queue a "remove item" action for the active storefront user.
+
+        The storefront widget will execute the removal.
+
+        '
+      tags:
+      - Cart
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                line_item_id:
+                  type: string
+                  description: Preferred line item id (if known)
+                lineItemId:
+                  type: string
+                  description: Alias for line_item_id
+                product_id:
+                  type: string
+                  description: Product UUID (alternative)
+                productId:
+                  type: string
+                  description: Alias for product_id
+                product_name:
+                  type: string
+                  description: Optional product name (for better logs/UI)
+                user_id:
+                  type: string
+                  description: Optional user id (conversation/userId from the widget)
+      responses:
+        '200':
+          description: Action queued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CartToolActionResponse'
+        '400':
+          description: Validation error
+  /api/cart/clear:
+    post:
+      operationId: emptyCart
+      summary: Empty the entire cart
+      description: 'Queue a "clear cart" action for the active storefront user.
+
+        The storefront widget will execute the removal.
+
+        '
+      tags:
+      - Cart
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                user_id:
+                  type: string
+                  description: Optional user id (conversation/userId from the widget)
+      responses:
+        '200':
+          description: Action queued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CartToolActionResponse'
+  /api/categories:
+    get:
+      operationId: getCategories
+      summary: Get all product categories
+      description: Retrieve the category tree for browsing products by category.
+      tags:
+      - Categories
+      responses:
+        '200':
+          description: Category list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CategoryListResponse'
+  /api/categories/{categoryId}:
+    get:
+      operationId: getCategory
+      summary: Get category details
+      description: Get information about a specific category.
+      tags:
+      - Categories
+      parameters:
+      - name: categoryId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Category UUID
+      responses:
+        '200':
+          description: Category details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  category:
+                    $ref: '#/components/schemas/Category'
+  /api/categories/{categoryId}/products:
+    get:
+      operationId: getCategoryProducts
+      summary: Get products in a category
+      description: Browse and list all products within a specific category.
+      tags:
+      - Categories
+      parameters:
+      - name: categoryId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Category UUID
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          default: 24
+      - name: page
+        in: query
+        schema:
+          type: integer
+          default: 1
+      responses:
+        '200':
+          description: Products in category
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductListResponse'
+  /api/navigation:
+    get:
+      operationId: getNavigation
+      summary: Get navigation menu
+      description: Get the main navigation menu structure for store browsing.
+      tags:
+      - Categories
+      parameters:
+      - name: depth
+        in: query
+        schema:
+          type: integer
+          default: 2
+        description: How many levels deep to fetch
+      responses:
+        '200':
+          description: Navigation structure
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  navigation:
+                    type: array
+                    items:
+                      type: object
+  /api/customer:
+    get:
+      operationId: getCustomer
+      summary: Get customer information
+      description: Get information about the logged-in customer, if any.
+      tags:
+      - Customer
+      parameters:
+      - $ref: '#/components/parameters/ContextToken'
+      responses:
+        '200':
+          description: Customer info
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  customer:
+                    type: object
+                    properties:
+                      loggedIn:
+                        type: boolean
+                      firstName:
+                        type: string
+                      lastName:
+                        type: string
+                      email:
+                        type: string
+  /api/orders:
+    post:
+      operationId: getCustomerOrders
+      summary: Get customer order history
+      description: 'Retrieve past orders for a logged-in customer.
+
+        Requires valid context token from logged-in session.
+
+        '
+      tags:
+      - Customer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                context_token:
+                  type: string
+                  description: Customer session token
+                limit:
+                  type: integer
+                  default: 5
+                  description: Maximum number of orders to return
+      responses:
+        '200':
+          description: Order history
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  orders:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Order'
+                  count:
+                    type: integer
+                  error:
+                    type: string
+                    description: Error code if not logged in
+                  message:
+                    type: string
+  /api/checkout/shipping-methods:
+    get:
+      operationId: getShippingMethods
+      summary: Get available shipping methods
+      description: List all available shipping options for the current cart.
+      tags:
+      - Checkout
+      parameters:
+      - $ref: '#/components/parameters/ContextTokenRequired'
+      responses:
+        '200':
+          description: Shipping methods
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  shippingMethods:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                        name:
+                          type: string
+                        price:
+                          type: number
+                        deliveryTime:
+                          type: string
+  /api/checkout/payment-methods:
+    get:
+      operationId: getPaymentMethods
+      summary: Get available payment methods
+      description: List all available payment options for checkout.
+      tags:
+      - Checkout
+      parameters:
+      - $ref: '#/components/parameters/ContextTokenRequired'
+      responses:
+        '200':
+          description: Payment methods
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  paymentMethods:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                        name:
+                          type: string
+                        description:
+                          type: string
+  /api/analytics/summary:
+    get:
+      operationId: analyticsSummary
+      summary: Analytics summary
+      description: Returns compact aggregated analytics and top questions.
+      tags:
+      - Analytics
+      responses:
+        '200':
+          description: OK
+  /api/products/resolve:
+    post:
+      operationId: resolveProduct
+      summary: Resolve SKU/name to product UUID
+      tags:
+      - Products
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                identifier:
+                  type: string
+                limit:
+                  type: integer
+                  default: 5
+              required:
+              - identifier
+      responses:
+        '200':
+          description: Resolved
+        '404':
+          description: Not found
+  /api/products/from-image:
+    post:
+      operationId: productsFromImage
+      summary: Image -> extract -> search -> top3 suggestions
+      tags:
+      - Products
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                userId:
+                  type: string
+                message:
+                  type: string
+                image:
+                  type: string
+                  description: Base64 data URL
+              required:
+              - image
+      responses:
+        '200':
+          description: Suggestions
+  /api/products/confirm:
+    post:
+      operationId: confirmProductSuggestion
+      summary: Confirm one of top-3 suggestions and enqueue add-to-cart
+      tags:
+      - Products
+      - Cart
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                selection_id:
+                  type: string
+                product_id:
+                  type: string
+                quantity:
+                  type: integer
+                  default: 1
+                userId:
+                  type: string
+              required:
+              - selection_id
+              - product_id
+      responses:
+        '200':
+          description: Queued
+  /api/orders/last:
+    post:
+      operationId: getLastOrder
+      summary: Get last order (newest)
+      tags:
+      - Orders
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: OK
+  /api/orders/by-number:
+    post:
+      operationId: getOrderByNumber
+      summary: Get order by orderNumber
+      tags:
+      - Orders
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                orderNumber:
+                  type: string
+              required:
+              - orderNumber
+      responses:
+        '200':
+          description: OK
+        '404':
+          description: Not found
+  /api/orders/reorder:
+    post:
+      operationId: reorder
+      summary: Reorder an order (by orderNumber if provided)
+      description: Enqueues cart add actions for each reorder item. The storefront
+        widget executes them.
+      tags:
+      - Orders
+      - Cart
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                orderNumber:
+                  type: string
+                  nullable: true
+                clearFirst:
+                  type: boolean
+                  default: false
+                userId:
+                  type: string
+      responses:
+        '200':
+          description: Queued actions
+components:
+  parameters:
+    ContextToken:
+      name: sw-context-token
+      in: header
+      required: false
+      schema:
+        type: string
+      description: Customer session token for cart persistence
+    ContextTokenRequired:
+      name: sw-context-token
+      in: header
+      required: true
+      schema:
+        type: string
+      description: Customer session token (required for this operation)
+  schemas:
+    Product:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Shopware product UUID
+        name:
+          type: string
+          description: Product name
+        description:
+          type: string
+          description: Product description (HTML stripped)
+        productNumber:
+          type: string
+          description: SKU/Article number
+        price:
+          type: number
+          description: Price in EUR
+        currency:
+          type: string
+          default: EUR
+        priceFormatted:
+          type: string
+          description: Formatted price with currency
+          example: 29,99 €
+        imageUrl:
+          type: string
+          nullable: true
+          description: Main product image URL
+        thumbnailUrl:
+          type: string
+          description: Thumbnail image URL
+        url:
+          type: string
+          description: Full product page URL
+        available:
+          type: boolean
+          description: Is the product available for purchase
+        inStock:
+          type: boolean
+        stock:
+          type: integer
+          description: Current stock level
+        manufacturer:
+          type: string
+          description: Manufacturer name
+    ProductDetails:
+      allOf:
+      - $ref: '#/components/schemas/Product'
+      - type: object
+        properties:
+          ean:
+            type: string
+          manufacturerNumber:
+            type: string
+          dimensions:
+            type: object
+            properties:
+              weight:
+                type: number
+              width:
+                type: number
+              height:
+                type: number
+              length:
+                type: number
+          variants:
+            type: array
+            items:
+              type: object
+              properties:
+                group:
+                  type: string
+                value:
+                  type: string
+          properties:
+            type: array
+            items:
+              type: object
+              properties:
+                group:
+                  type: string
+                value:
+                  type: string
+    ProductListResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+          example: 15 Produkte gefunden
+        products:
+          type: array
+          items:
+            $ref: '#/components/schemas/Product'
+        total:
+          type: integer
+          description: Total number of matching products
+        page:
+          type: integer
+        limit:
+          type: integer
+    ProductDetailsResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        product:
+          $ref: '#/components/schemas/ProductDetails'
+    CartItem:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Line item ID (use for updates/removal)
+        productId:
+          type: string
+          description: Product ID
+        name:
+          type: string
+        quantity:
+          type: integer
+        unitPrice:
+          type: number
+        price:
+          type: number
+        totalPrice:
+          type: number
+        total:
+          type: number
+        priceFormatted:
+          type: string
+        imageUrl:
+          type: string
+    Cart:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/CartItem'
+        itemCount:
+          type: integer
+          description: Total quantity of all items
+        subtotal:
+          type: number
+        shipping:
+          type: number
+        total:
+          type: number
+        totalFormatted:
+          type: string
+          example: 59,98 €
+        checkoutUrl:
+          type: string
+          description: Direct link to checkout
+    CartResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+          description: Human-readable status message
+        cart:
+          $ref: '#/components/schemas/Cart'
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/CartItem'
+        total:
+          type: number
+        contextToken:
+          type: string
+          description: Session token to use for subsequent requests
+    CartSummaryResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        cart:
+          type: object
+          properties:
+            items:
+              type: array
+              items:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    description: Line item id
+                  lineItemId:
+                    type: string
+                    description: Duplicate of id for clarity
+                  productId:
+                    type: string
+                  name:
+                    type: string
+                  quantity:
+                    type: integer
+                  price:
+                    type: number
+                  totalPrice:
+                    type: number
+            itemCount:
+              type: integer
+            total:
+              type: number
+    CartToolActionResponse:
+      type: object
+      description: Response returned by tool endpoints that queue cart actions.
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        product_id:
+          type: string
+          nullable: true
+        product_name:
+          type: string
+          nullable: true
+        quantity:
+          type: integer
+          nullable: true
+        line_item_id:
+          type: string
+          nullable: true
+    CartAction:
+      type: object
+      description: Action for frontend to execute on Shopware cart
+      properties:
+        type:
+          type: string
+          enum:
+          - add
+          - update
+          - remove
+          - clear
+        productId:
+          type: string
+        productName:
+          type: string
+        productPrice:
+          type: number
+        productUrl:
+          type: string
+        quantity:
+          type: integer
+        lineItemId:
+          type: string
+    Category:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        parentId:
+          type: string
+          nullable: true
+        level:
+          type: integer
+        hasChildren:
+          type: boolean
+        url:
+          type: string
+    CategoryListResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        categories:
+          type: array
+          items:
+            $ref: '#/components/schemas/Category'
+        count:
+          type: integer
+        total:
+          type: integer
+    Order:
+      type: object
+      properties:
+        id:
+          type: string
+        orderNumber:
+          type: string
+        date:
+          type: string
+        dateFormatted:
+          type: string
+        total:
+          type: number
+        totalFormatted:
+          type: string
+        status:
+          type: string
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+              name:
+                type: string
+              quantity:
+                type: integer
+              price:
+                type: number
+              priceFormatted:
+                type: string

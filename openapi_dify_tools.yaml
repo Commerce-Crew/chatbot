@@ -1,0 +1,1006 @@
+openapi: 3.0.3
+info:
+  title: Shopware Middleware - Dify Tools API
+  version: 1.0.0
+  description: |
+    Minimal, implementation-aligned OpenAPI spec for Dify tool calling.
+    This file is intentionally limited to <=20 operations and only includes
+    routes that are implemented in this middleware.
+
+    Notes:
+    - Use `x-cc-api-key` for tenant authentication.
+    - Use `x-cc-shop-id` for multi-shop routing when needed.
+    - For customer/cart/order context, provide `sw-context-token` header
+      and/or `context_token` in request body.
+
+servers:
+  - url: https://cbshop.commerce-crew.com
+    description: Production
+  - url: http://localhost:3330
+    description: Local development
+
+security:
+  - ApiKeyAuth: []
+
+tags:
+  - name: System
+  - name: Products
+  - name: Cart
+  - name: Customer
+  - name: Orders
+  - name: Categories
+  - name: Shop
+  - name: Context
+
+paths:
+  /api/health:
+    get:
+      operationId: healthCheck
+      tags: [System]
+      summary: Health check
+      parameters:
+        - $ref: '#/components/parameters/ShopIdHeader'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+                  service:
+                    type: string
+                  timestamp:
+                    type: string
+                  requestId:
+                    type: string
+
+  /api/products/search:
+    post:
+      operationId: searchProducts
+      tags: [Products]
+      summary: Search products
+      parameters:
+        - $ref: '#/components/parameters/ShopIdHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [query]
+              properties:
+                query:
+                  type: string
+                limit:
+                  type: integer
+                  minimum: 1
+                  maximum: 50
+                  default: 10
+      responses:
+        '200':
+          description: Product search results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductListResponse'
+
+  /api/products/get:
+    post:
+      operationId: getProduct
+      tags: [Products]
+      summary: Get product details by product ID
+      parameters:
+        - $ref: '#/components/parameters/ShopIdHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [productId]
+              properties:
+                productId:
+                  type: string
+      responses:
+        '200':
+          description: Product
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  product:
+                    $ref: '#/components/schemas/Product'
+        '404':
+          description: Product not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/products/resolve:
+    post:
+      operationId: resolveProductIdentifier
+      tags: [Products]
+      summary: Resolve SKU/name/identifier to product UUID
+      parameters:
+        - $ref: '#/components/parameters/ShopIdHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [identifier]
+              properties:
+                identifier:
+                  type: string
+                limit:
+                  type: integer
+                  minimum: 1
+                  maximum: 20
+                  default: 5
+      responses:
+        '200':
+          description: Resolved product
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  identifier:
+                    type: string
+                  product:
+                    $ref: '#/components/schemas/Product'
+                  candidates:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Product'
+        '404':
+          description: Product not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/products/compare:
+    post:
+      operationId: compareProducts
+      tags: [Products]
+      summary: Compare products by identifiers
+      parameters:
+        - $ref: '#/components/parameters/ShopIdHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                productIds:
+                  type: array
+                  items:
+                    type: string
+                identifiers:
+                  type: array
+                  items:
+                    type: string
+      responses:
+        '200':
+          description: Compare response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  count:
+                    type: integer
+                  results:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        success:
+                          type: boolean
+                        identifier:
+                          type: string
+                        product:
+                          $ref: '#/components/schemas/Product'
+                        error:
+                          type: string
+
+  /api/cart/summary:
+    post:
+      operationId: getCartSummary
+      tags: [Cart]
+      summary: Get cart summary
+      parameters:
+        - $ref: '#/components/parameters/ShopIdHeader'
+        - $ref: '#/components/parameters/ContextTokenHeader'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                context_token:
+                  type: string
+      responses:
+        '200':
+          description: Cart summary
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CartSummaryResponse'
+
+  /api/cart/add:
+    post:
+      operationId: addToCart
+      tags: [Cart]
+      summary: Queue add-to-cart action
+      parameters:
+        - $ref: '#/components/parameters/ShopIdHeader'
+        - $ref: '#/components/parameters/ContextTokenHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [productId]
+              properties:
+                productId:
+                  type: string
+                  description: Product UUID
+                productName:
+                  type: string
+                quantity:
+                  type: integer
+                  minimum: 1
+                  default: 1
+                userId:
+                  type: string
+                context_token:
+                  type: string
+      responses:
+        '200':
+          description: Action queued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CartActionResponse'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/cart/update:
+    post:
+      operationId: updateCartQuantity
+      tags: [Cart]
+      summary: Queue cart quantity update action
+      parameters:
+        - $ref: '#/components/parameters/ShopIdHeader'
+        - $ref: '#/components/parameters/ContextTokenHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [quantity]
+              properties:
+                lineItemId:
+                  type: string
+                productId:
+                  type: string
+                productName:
+                  type: string
+                quantity:
+                  type: integer
+                  minimum: 1
+                userId:
+                  type: string
+                context_token:
+                  type: string
+      responses:
+        '200':
+          description: Action queued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CartActionResponse'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/cart/remove:
+    post:
+      operationId: removeFromCart
+      tags: [Cart]
+      summary: Queue remove-from-cart action
+      parameters:
+        - $ref: '#/components/parameters/ShopIdHeader'
+        - $ref: '#/components/parameters/ContextTokenHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                lineItemId:
+                  type: string
+                productId:
+                  type: string
+                productName:
+                  type: string
+                userId:
+                  type: string
+                context_token:
+                  type: string
+      responses:
+        '200':
+          description: Action queued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CartActionResponse'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/cart/clear:
+    post:
+      operationId: clearCart
+      tags: [Cart]
+      summary: Queue clear-cart action
+      parameters:
+        - $ref: '#/components/parameters/ShopIdHeader'
+        - $ref: '#/components/parameters/ContextTokenHeader'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                userId:
+                  type: string
+                context_token:
+                  type: string
+      responses:
+        '200':
+          description: Action queued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CartActionResponse'
+
+  /api/customer:
+    get:
+      operationId: getCustomerSession
+      tags: [Customer]
+      summary: Get logged-in customer session info
+      parameters:
+        - $ref: '#/components/parameters/ShopIdHeader'
+        - $ref: '#/components/parameters/ContextTokenHeader'
+        - name: token
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Customer session status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerSessionResponse'
+
+  /api/orders:
+    post:
+      operationId: getOrders
+      tags: [Orders]
+      summary: Get customer orders
+      parameters:
+        - $ref: '#/components/parameters/ShopIdHeader'
+        - $ref: '#/components/parameters/ContextTokenHeader'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                context_token:
+                  type: string
+                limit:
+                  type: integer
+                  minimum: 1
+                  maximum: 50
+                  default: 5
+      responses:
+        '200':
+          description: Orders response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrdersResponse'
+
+  /api/orders/last:
+    post:
+      operationId: getLastOrder
+      tags: [Orders]
+      summary: Get most recent order
+      parameters:
+        - $ref: '#/components/parameters/ShopIdHeader'
+        - $ref: '#/components/parameters/ContextTokenHeader'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                context_token:
+                  type: string
+      responses:
+        '200':
+          description: Last order
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderSingleResponse'
+        '404':
+          description: Not found or not logged in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/orders/by-number:
+    post:
+      operationId: getOrderByNumber
+      tags: [Orders]
+      summary: Get order by order number
+      parameters:
+        - $ref: '#/components/parameters/ShopIdHeader'
+        - $ref: '#/components/parameters/ContextTokenHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [orderNumber]
+              properties:
+                orderNumber:
+                  type: string
+                context_token:
+                  type: string
+      responses:
+        '200':
+          description: Matching order
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderSingleResponse'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/orders/tracking:
+    post:
+      operationId: getOrderTracking
+      tags: [Orders]
+      summary: Get tracking codes for last order or by order number
+      parameters:
+        - $ref: '#/components/parameters/ShopIdHeader'
+        - $ref: '#/components/parameters/ContextTokenHeader'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                orderNumber:
+                  type: string
+                context_token:
+                  type: string
+      responses:
+        '200':
+          description: Tracking information
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderTrackingResponse'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/orders/reorder:
+    post:
+      operationId: reorderFromPastOrder
+      tags: [Orders]
+      summary: Queue reorder actions from last/past order
+      parameters:
+        - $ref: '#/components/parameters/ShopIdHeader'
+        - $ref: '#/components/parameters/ContextTokenHeader'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                orderNumber:
+                  type: string
+                clearFirst:
+                  type: boolean
+                  default: false
+                userId:
+                  type: string
+                context_token:
+                  type: string
+      responses:
+        '200':
+          description: Reorder actions queued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReorderResponse'
+        '404':
+          description: Order not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/categories:
+    get:
+      operationId: getCategories
+      tags: [Categories]
+      summary: Get product categories
+      parameters:
+        - $ref: '#/components/parameters/ShopIdHeader'
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 50
+      responses:
+        '200':
+          description: Categories list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  categories:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Category'
+                  count:
+                    type: integer
+
+  /api/shop/info:
+    post:
+      operationId: getShopInfo
+      tags: [Shop]
+      summary: Get shipping and payment methods
+      parameters:
+        - $ref: '#/components/parameters/ShopIdHeader'
+        - $ref: '#/components/parameters/ContextTokenHeader'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                context_token:
+                  type: string
+                language_id:
+                  type: string
+      responses:
+        '200':
+          description: Shop info
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ShopInfoResponse'
+
+  /api/context/refresh:
+    post:
+      operationId: refreshContextToken
+      tags: [Context]
+      summary: Refresh Shopware context token
+      parameters:
+        - $ref: '#/components/parameters/ShopIdHeader'
+        - $ref: '#/components/parameters/ContextTokenHeader'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                context_token:
+                  type: string
+      responses:
+        '200':
+          description: Token refresh result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContextRefreshResponse'
+
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: x-cc-api-key
+
+  parameters:
+    ShopIdHeader:
+      name: x-cc-shop-id
+      in: header
+      required: false
+      schema:
+        type: string
+      description: Optional sales channel/shop selector for multi-shop tenants.
+
+    ContextTokenHeader:
+      name: sw-context-token
+      in: header
+      required: false
+      schema:
+        type: string
+      description: Shopware context token (guest or logged-in customer session).
+
+  schemas:
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          default: false
+        error:
+          type: string
+        message:
+          type: string
+
+    Product:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        productNumber:
+          type: string
+        description:
+          type: string
+        price:
+          type: number
+        priceFormatted:
+          type: string
+        imageUrl:
+          type: string
+          nullable: true
+        url:
+          type: string
+        available:
+          type: boolean
+        stock:
+          type: integer
+
+    ProductListResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        query:
+          type: string
+        count:
+          type: integer
+        products:
+          type: array
+          items:
+            $ref: '#/components/schemas/Product'
+
+    CartItem:
+      type: object
+      properties:
+        id:
+          type: string
+        productId:
+          type: string
+        name:
+          type: string
+        quantity:
+          type: integer
+        price:
+          type: number
+        totalPrice:
+          type: number
+
+    CartSummary:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/CartItem'
+        itemCount:
+          type: integer
+        total:
+          type: number
+
+    CartSummaryResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        cart:
+          $ref: '#/components/schemas/CartSummary'
+        context_token:
+          type: string
+
+    CartAction:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [add, update, remove, clear]
+        productId:
+          type: string
+        productName:
+          type: string
+        lineItemId:
+          type: string
+        quantity:
+          type: integer
+        timestamp:
+          type: integer
+
+    CartActionResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        action:
+          $ref: '#/components/schemas/CartAction'
+        resolvedProduct:
+          $ref: '#/components/schemas/Product'
+
+    Customer:
+      type: object
+      properties:
+        firstName:
+          type: string
+        lastName:
+          type: string
+        email:
+          type: string
+
+    CustomerSessionResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        loggedIn:
+          type: boolean
+        customer:
+          allOf:
+            - $ref: '#/components/schemas/Customer'
+          nullable: true
+
+    OrderItem:
+      type: object
+      properties:
+        productId:
+          type: string
+          nullable: true
+        name:
+          type: string
+        quantity:
+          type: integer
+        price:
+          type: number
+        priceFormatted:
+          type: string
+
+    Delivery:
+      type: object
+      properties:
+        id:
+          type: string
+        state:
+          type: string
+          nullable: true
+        shippingMethod:
+          type: string
+          nullable: true
+        trackingCodes:
+          type: array
+          items:
+            type: string
+        shippedAt:
+          type: string
+          nullable: true
+        shippedAtLatest:
+          type: string
+          nullable: true
+
+    Order:
+      type: object
+      properties:
+        id:
+          type: string
+        orderNumber:
+          type: string
+        date:
+          type: string
+        dateFormatted:
+          type: string
+        total:
+          type: number
+        totalFormatted:
+          type: string
+        status:
+          type: string
+        deliveries:
+          type: array
+          items:
+            $ref: '#/components/schemas/Delivery'
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/OrderItem'
+
+    OrdersResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        orders:
+          type: array
+          items:
+            $ref: '#/components/schemas/Order'
+        count:
+          type: integer
+        error:
+          type: string
+        message:
+          type: string
+
+    OrderSingleResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        order:
+          $ref: '#/components/schemas/Order'
+
+    OrderTrackingResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        orderNumber:
+          type: string
+        deliveries:
+          type: array
+          items:
+            $ref: '#/components/schemas/Delivery'
+        trackingCodes:
+          type: array
+          items:
+            type: string
+
+    ReorderResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        orderNumber:
+          type: string
+        itemCount:
+          type: integer
+        actions:
+          type: array
+          items:
+            $ref: '#/components/schemas/CartAction'
+        error:
+          type: string
+        message:
+          type: string
+
+    Category:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        level:
+          type: integer
+        parentId:
+          type: string
+          nullable: true
+
+    ShopMethod:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        price:
+          type: number
+          nullable: true
+        priceFormatted:
+          type: string
+          nullable: true
+        active:
+          type: boolean
+
+    ShopInfoResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        shippingMethods:
+          type: array
+          items:
+            $ref: '#/components/schemas/ShopMethod'
+        paymentMethods:
+          type: array
+          items:
+            $ref: '#/components/schemas/ShopMethod'
+
+    ContextRefreshResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        status:
+          type: integer
+        context_token:
+          type: string

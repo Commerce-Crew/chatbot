@@ -1,0 +1,48 @@
+version: '3.8'
+
+services:
+  chatbot-middleware:
+    build: .
+    container_name: dentalkiosk-chatbot
+    restart: always
+    ports:
+      - "3330:3330"
+    environment:
+      - PORT=3330
+      - SHOPWARE_URL=${SHOPWARE_URL:-https://dentalkiosk.de}
+      - SW_ACCESS_KEY=${SW_ACCESS_KEY}
+      - DIFY_URL=${DIFY_URL:-https://dify.commerce-crew.com}
+      - DIFY_API_KEY=${DIFY_API_KEY}
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-https://dentalkiosk.de}
+      - DEBUG=${DEBUG:-false}
+      - ADMIN_USER=${ADMIN_USER:-admin}
+      - ADMIN_PASS=${ADMIN_PASS:-change-me}
+      - DB_HOST=${DB_HOST:-db}
+      - DB_PORT=${DB_PORT:-5432}
+      - DB_NAME=${DB_NAME:-ccchatmiddleware}
+      - DB_USER=${DB_USER:-postgres}
+      - DB_PASSWORD=${DB_PASSWORD:-postgres}
+      - DB_SSL=${DB_SSL:-false}
+    depends_on:
+      - db
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3330/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  db:
+    image: postgres:15
+    container_name: ccchatmiddleware-db
+    restart: always
+    environment:
+      POSTGRES_DB: ${DB_NAME:-ccchatmiddleware}
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+    ports:
+      - "5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+
+volumes:
+  db_data:

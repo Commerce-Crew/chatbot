@@ -1,0 +1,25 @@
+{
+  "name": "dentalkiosk-chatbot-middleware",
+  "version": "5.1.0",
+  "description": "DentalKiosk Chatbot Middleware with Dify integration",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js",
+    "seed:tenant": "node scripts/seed-tenant.js",
+    "test": "jest --runInBand"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "morgan": "^1.10.0",
+    "multer": "^1.4.5-lts.1",
+    "pg": "^8.18.0"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "nodemon": "^3.0.1",
+    "supertest": "^6.3.4"
+  }
+}
