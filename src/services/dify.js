@@ -220,15 +220,37 @@ function formatOrders(orders, lang = 'de') {
 }
 
 /**
- * Format shop info (shipping + payment) for Dify context
+ * Format shop info (shipping, payment, opening hours, contact, return policy, about us) for Dify context
  */
 function formatShopInfo(shopInfo, lang = 'de') {
     const shipping = shopInfo?.shippingMethods || [];
     const payment = shopInfo?.paymentMethods || [];
-    if (!shipping.length && !payment.length) return '';
+    const openingHours = String(shopInfo?.openingHours || '').trim();
+    const contact = String(shopInfo?.contact || '').trim();
+    const returnPolicy = String(shopInfo?.returnPolicy || '').trim();
+    const aboutUs = String(shopInfo?.aboutUs || '').trim();
+
+    const hasStatic = openingHours || contact || returnPolicy || aboutUs;
+    if (!shipping.length && !payment.length && !hasStatic) return '';
     const en = String(lang || '').toLowerCase().startsWith('en');
 
     let text = '[SHOP INFO]\n';
+    if (openingHours) {
+        text += en ? 'Opening hours:\n' : 'Öffnungszeiten:\n';
+        text += openingHours + '\n\n';
+    }
+    if (contact) {
+        text += en ? 'Contact (phone, email, address):\n' : 'Kontakt (Telefon, E-Mail, Adresse):\n';
+        text += contact + '\n\n';
+    }
+    if (returnPolicy) {
+        text += en ? 'Return policy / Refunds:\n' : 'Rückversand / Retouren:\n';
+        text += returnPolicy + '\n\n';
+    }
+    if (aboutUs) {
+        text += en ? 'About us:\n' : 'Wer wir sind / Über uns:\n';
+        text += aboutUs + '\n\n';
+    }
     if (shipping.length) {
         text += en ? 'Shipping:\n' : 'Versand:\n';
         shipping.slice(0, 10).forEach((m, i) => {

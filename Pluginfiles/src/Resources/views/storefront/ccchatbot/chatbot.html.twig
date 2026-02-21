@@ -10,6 +10,7 @@
   shopUrl: app.request.getSchemeAndHttpHost(),
   shopId: context.salesChannel.id,
   contextUrl: path('frontend.ccchatbot.context'),
+  storePagesUrl: path('frontend.ccchatbot.store_pages'),
   storagePrefix: 'cc_chat_',
   maxHistoryMessages: 50,
   maxFileSize: 10 * 1024 * 1024,
@@ -18,11 +19,18 @@
   analyticsFlushInterval: 30000,
   debug: app.debug ? true : (config('CCChatbot.config.debug') ? true : false),
   assistantName: (config('CCChatbot.config.assistantName') ?: 'Assistant'),
+  avatarUrl: (config('CCChatbot.config.avatarUrl') ?: '')|trim,
   primaryColor: (config('CCChatbot.config.primaryColor') ?: '#0B1742'),
   primaryColorLight: (config('CCChatbot.config.primaryColorLight') ?: '#1a2a5e'),
   secondaryColor: (config('CCChatbot.config.secondaryColor') ?: '#ffffff'),
   welcomeMessage: (config('CCChatbot.config.welcomeMessage') ?: ''),
   extraInstructions: (config('CCChatbot.config.extraInstructions') ?: ''),
+  openingHoursSource: (config('CCChatbot.config.openingHoursSource') ?: 'manual'),
+  shopOpeningHours: (config('CCChatbot.config.shopOpeningHours') ?: '')|trim,
+  googlePlaceId: (config('CCChatbot.config.googlePlaceId') ?: '')|trim,
+  shopContact: (config('CCChatbot.config.shopContact') ?: '')|trim,
+  shopReturnPolicy: (config('CCChatbot.config.shopReturnPolicy') ?: '')|trim,
+  shopAboutUs: (config('CCChatbot.config.shopAboutUs') ?: '')|trim,
   quickActions: [
     {
       label: (config('CCChatbot.config.quick1Label') ?: '🧤 Handschuhe'),
@@ -76,7 +84,8 @@
     #cc-chatbot .cc-header{background:linear-gradient(135deg,var(--cc-primary),var(--cc-primary-light))!important;color:var(--cc-white)!important;padding:20px!important;display:flex!important;align-items:center!important;justify-content:space-between!important;position:relative!important;overflow:hidden!important;flex-shrink:0!important}
     #cc-chatbot .cc-header::before{content:''!important;position:absolute!important;top:-50%!important;right:-20%!important;width:200px!important;height:200px!important;background:radial-gradient(circle,rgba(255,255,255,0.1),transparent 70%)!important;pointer-events:none!important}
     #cc-chatbot .cc-header-info{display:flex!important;align-items:center!important;gap:14px!important;position:relative!important;z-index:1!important}
-    #cc-chatbot .cc-avatar{width:48px!important;height:48px!important;border-radius:50%!important;background:rgba(255,255,255,0.15)!important;display:flex!important;align-items:center!important;justify-content:center!important;border:2px solid rgba(255,255,255,0.2)!important;flex-shrink:0!important}
+    #cc-chatbot .cc-avatar{width:48px!important;height:48px!important;border-radius:50%!important;background:rgba(255,255,255,0.15)!important;display:flex!important;align-items:center!important;justify-content:center!important;border:2px solid rgba(255,255,255,0.2)!important;flex-shrink:0!important;overflow:hidden!important}
+    #cc-chatbot .cc-avatar img{width:100%!important;height:100%!important;object-fit:contain!important;display:block!important}
     #cc-chatbot .cc-avatar svg{width:26px!important;height:26px!important;fill:var(--cc-white)!important}
     #cc-chatbot .cc-header-text h3{margin:0 0 2px 0!important;font-size:17px!important;font-weight:600!important;color:var(--cc-white)!important;padding:0!important;border:none!important;background:none!important}
     #cc-chatbot .cc-status{font-size:13px!important;opacity:0.9!important;display:flex!important;align-items:center!important;gap:6px!important;color:var(--cc-white)!important}
@@ -206,7 +215,7 @@
     <div class="cc-window" id="ccWindow">
         <div class="cc-header">
             <div class="cc-header-info">
-                <div class="cc-avatar"><svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"/></svg></div>
+                <div class="cc-avatar">{% if ccCfg.avatarUrl %}<img src="{{ ccCfg.avatarUrl }}" alt="" loading="lazy">{% else %}<svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"/></svg>{% endif %}</div>
                 <div class="cc-header-text">
                     <h3>{{ ccCfg.assistantName }}</h3>
                     <span class="cc-status"><span class="cc-status-dot"></span>Online</span>
@@ -1172,13 +1181,20 @@ window.CCChatbotConfig = {{ ccCfg|json_encode|raw }};
     // =================================================================
     function shouldFetchShopInfo(text) {
         const t = String(text || '').toLowerCase();
-        return /(versand|versandkosten|liefer|lieferung|shipping|delivery|zahlung|zahlungsart|payment|payment method)/i.test(t);
+        return /(versand|versandkosten|liefer|lieferung|shipping|delivery|zahlung|zahlungsart|payment|payment method|öffnungszeiten|öffnung|opening hours|shop hours|kontakt|contact|telefon|phone|nummer|rückversand|rückgabe|retouren|return policy|wer wir sind|about us|über uns|impressum)/i.test(t);
     }
 
     async function getShopInfo() {
         try {
             const token = await ensureContextToken('getShopInfo');
             const languageId = getLanguageId();
+            const body = {
+                context_token: token,
+                language_id: languageId
+            };
+            if (CONFIG.openingHoursSource === 'google' && CONFIG.googlePlaceId) {
+                body.google_place_id = CONFIG.googlePlaceId;
+            }
             const headers = authHeaders({
                 'Content-Type': 'application/json',
                 ...(token ? { 'sw-context-token': token } : {}),
@@ -1188,10 +1204,7 @@ window.CCChatbotConfig = {{ ccCfg|json_encode|raw }};
                 method: 'POST',
                 credentials: 'include',
                 headers,
-                body: JSON.stringify({
-                    context_token: token,
-                    language_id: languageId
-                })
+                body: JSON.stringify(body)
             });
             if (!response.ok) return null;
             const json = await response.json().catch(() => null);
@@ -1199,6 +1212,25 @@ window.CCChatbotConfig = {{ ccCfg|json_encode|raw }};
             return json;
         } catch (_) {
             return null;
+        }
+    }
+
+    /** Fetch contact / return policy / about us from store pages (same-origin). */
+    async function getStorePages() {
+        const url = (CONFIG.storePagesUrl || '').replace(/^\s+|\s+$/g, '');
+        if (!url) return { contact: '', returnPolicy: '', aboutUs: '' };
+        try {
+            const response = await fetch(url, { method: 'GET', credentials: 'same-origin' });
+            if (!response.ok) return { contact: '', returnPolicy: '', aboutUs: '' };
+            const json = await response.json().catch(() => null);
+            if (!json?.success) return { contact: '', returnPolicy: '', aboutUs: '' };
+            return {
+                contact: String(json.contact ?? '').trim(),
+                returnPolicy: String(json.returnPolicy ?? '').trim(),
+                aboutUs: String(json.aboutUs ?? '').trim()
+            };
+        } catch (_) {
+            return { contact: '', returnPolicy: '', aboutUs: '' };
         }
     }
 
@@ -1422,7 +1454,16 @@ window.CCChatbotConfig = {{ ccCfg|json_encode|raw }};
                 });
             }
 
-            const shopInfo = shouldFetchShopInfo(text) ? await getShopInfo() : null;
+            let shopInfo = null;
+            if (shouldFetchShopInfo(text)) {
+                const [apiShopInfo, storePages] = await Promise.all([getShopInfo(), getStorePages()]);
+                shopInfo = apiShopInfo || {};
+                if (storePages.contact) shopInfo.contact = storePages.contact;
+                if (storePages.returnPolicy) shopInfo.returnPolicy = storePages.returnPolicy;
+                if (storePages.aboutUs) shopInfo.aboutUs = storePages.aboutUs;
+                if (apiShopInfo?.openingHours) shopInfo.openingHours = apiShopInfo.openingHours;
+                else if (CONFIG.shopOpeningHours) shopInfo.openingHours = CONFIG.shopOpeningHours;
+            }
             const response = await fetch(`${CONFIG.middlewareUrl}/chat/stream`, {
                 method: 'POST',
                 credentials: 'include',

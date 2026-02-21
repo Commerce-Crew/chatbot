@@ -31,6 +31,13 @@
       <defaultValue>DentalKiosk Assistent</defaultValue>
     </input-field>
 
+    <input-field>
+      <name>avatarUrl</name>
+      <label>Avatar image URL</label>
+      <helpText>Optional. Full URL to an image for the chat header avatar (e.g. copy URL from Media Manager). Leave empty to use the default icon.</helpText>
+      <defaultValue></defaultValue>
+    </input-field>
+
     <input-field type="colorpicker">
       <name>primaryColor</name>
       <label>Primary color</label>
@@ -64,6 +71,79 @@ Willkommen bei DentalKiosk. Ich kann Ihnen bei Produktsuche, Bestellungen und me
       <name>extraInstructions</name>
       <label>Extra instructions (sent to the AI)</label>
       <helpText>Add shop-specific guidance, tone, or policies for the assistant.</helpText>
+      <defaultValue></defaultValue>
+    </input-field>
+
+    <input-field type="single-select">
+      <name>openingHoursSource</name>
+      <label>Opening hours source</label>
+      <helpText>Use manual text or fetch from Google (Place ID). Google requires API key on middleware.</helpText>
+      <options>
+        <option>
+          <id>manual</id>
+          <name>Manual text</name>
+        </option>
+        <option>
+          <id>google</id>
+          <name>From Google (Place)</name>
+        </option>
+      </options>
+      <defaultValue>manual</defaultValue>
+    </input-field>
+
+    <input-field type="text-editor">
+      <name>shopOpeningHours</name>
+      <label>Shop opening hours (manual)</label>
+      <helpText>Used when "Opening hours source" is Manual. e.g. Mo–Fr 9–18 Uhr, Sa 9–13 Uhr.</helpText>
+      <defaultValue></defaultValue>
+    </input-field>
+
+    <input-field>
+      <name>googlePlaceId</name>
+      <label>Google Place ID (for opening hours)</label>
+      <helpText>Used when opening hours source is "From Google". Find in Google Business Profile or Places API.</helpText>
+      <defaultValue></defaultValue>
+    </input-field>
+
+    <input-field>
+      <name>contactPageId</name>
+      <label>Contact page ID (Category / Landing / CMS)</label>
+      <helpText>UUID from Admin: Catalog → Categories (e.g. Kontakt), or Content → Landing pages, or page editor. Same ID as in URL .../category/index/XXX/base. Leave empty to use fallback text.</helpText>
+      <defaultValue></defaultValue>
+    </input-field>
+
+    <input-field type="text-editor">
+      <name>shopContact</name>
+      <label>Contact info fallback (if no page)</label>
+      <helpText>Used when no Contact page ID is set. e.g. Tel. 0123/456789, info@shop.de.</helpText>
+      <defaultValue></defaultValue>
+    </input-field>
+
+    <input-field>
+      <name>returnPolicyPageId</name>
+      <label>Return policy / Rückversand page ID (Category / Landing / CMS)</label>
+      <helpText>UUID from Admin (Category, Landing page, or CMS page). Leave empty to use fallback text.</helpText>
+      <defaultValue></defaultValue>
+    </input-field>
+
+    <input-field type="text-editor">
+      <name>shopReturnPolicy</name>
+      <label>Return policy fallback (if no page)</label>
+      <helpText>Used when no Return policy page ID is set.</helpText>
+      <defaultValue></defaultValue>
+    </input-field>
+
+    <input-field>
+      <name>aboutUsPageId</name>
+      <label>About us / Wer wir sind page ID (Category / Landing / CMS)</label>
+      <helpText>UUID from Admin (Category, Landing page, or CMS page). Leave empty to use fallback text.</helpText>
+      <defaultValue></defaultValue>
+    </input-field>
+
+    <input-field type="text-editor">
+      <name>shopAboutUs</name>
+      <label>About us fallback (if no page)</label>
+      <helpText>Used when no About us page ID is set.</helpText>
       <defaultValue></defaultValue>
     </input-field>
 

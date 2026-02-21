@@ -5,6 +5,13 @@
     <services>
         <defaults autowire="true" autoconfigure="true" public="false" />
 
+        <service id="CommerceCrew\CCChatbot\Service\CmsPageTextExtractor" />
+
         <service id="CommerceCrew\CCChatbot\Storefront\Controller\ContextController" public="true" />
+        <service id="CommerceCrew\CCChatbot\Storefront\Controller\StorePagesController" public="true">
+            <argument type="service" id="landing_page.repository" />
+            <argument type="service" id="cms_page.repository" />
+            <argument type="service" id="category.repository" />
+        </service>
     </services>
 </container>

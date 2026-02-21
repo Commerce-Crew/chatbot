@@ -880,6 +880,17 @@ router.post('/stream', async (req, res) => {
         // Default: stream from Dify
         // ---------------------------------------------------------------------
         const languageHint = resolveLanguageHint(req);
+        if (shop_info && typeof shop_info === 'object') {
+            log('CHAT', 'Shop info for Dify', {
+                hasOpeningHours: !!shop_info.openingHours,
+                hasContact: !!shop_info.contact,
+                hasReturnPolicy: !!shop_info.returnPolicy,
+                hasAboutUs: !!shop_info.aboutUs,
+                shippingCount: Array.isArray(shop_info.shippingMethods) ? shop_info.shippingMethods.length : 0,
+                paymentCount: Array.isArray(shop_info.paymentMethods) ? shop_info.paymentMethods.length : 0
+            });
+        }
+
         const difyResponse = await dify.streamChat(
             message || '',
             user,

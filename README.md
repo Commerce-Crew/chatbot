@@ -97,6 +97,13 @@ Bulk import shops:
 - Use `/admin/shops/import` to pull sales channels from Shopware Store API.
 - Imported shops are keyed by sales channel ID and can auto-fill `allowed_origins` from channel domains.
 
+Optional: Opening hours from Google
+- Set `GOOGLE_PLACES_API_KEY` in the middleware environment to enable opening hours via Google Place Details.
+- In the plugin config, set "Opening hours source" to "From Google" and enter the Google Place ID; the chatbot will then answer Öffnungszeiten using Google data.
+
+Store pages (Contact, Return policy, About us):
+- The plugin can use CMS landing pages: set the landing page UUIDs in plugin config (Contact page, Return policy page, About us page). The storefront fetches text from these pages for the AI context. Fallback text fields are used when no page ID is set.
+
 ## Shop chatbot feature ideas
 
 ### Customer-facing
@@ -128,7 +135,7 @@ Customer-facing:
 Owner-facing:
 - `POST /api/leads` capture lead/contact requests with optional product interest
 - `GET /admin/leads` basic-auth UI to view captured leads
-- `POST /api/shop/info` shipping & payment methods (for shop info like shipping costs)
+- `POST /api/shop/info` shipping & payment methods (for shop info like shipping costs). Optional body `google_place_id` fetches opening hours from Google Places when `GOOGLE_PLACES_API_KEY` is set in env.
 
 Language support:
 - Send `language` (e.g. "de-DE", "en-US") in `/api/chat/stream` to have Dify respond in that language.
