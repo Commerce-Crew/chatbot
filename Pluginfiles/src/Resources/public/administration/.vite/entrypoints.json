@@ -1,0 +1,25 @@
+{
+  "base": "/bundles/ccchatbot/administration/",
+  "entryPoints": {
+    "c-c-chatbot": {
+      "css": [
+        "/bundles/ccchatbot/administration/assets/c-c-chatbot-BzRWWEzF.css"
+      ],
+      "dynamic": [],
+      "js": [
+        "/bundles/ccchatbot/administration/assets/c-c-chatbot-Bd2Peine.js"
+      ],
+      "legacy": false,
+      "preload": []
+    }
+  },
+  "legacy": false,
+  "metadatas": {},
+  "version": [
+    "7.1.0",
+    7,
+    1,
+    0
+  ],
+  "viteServer": null
+}

@@ -1,0 +1,21 @@
+{
+  "name": "commercecrew/cc-chatbot",
+  "description": "CCChatbot - configurable chatbot widget for Shopware 6.6/6.7",
+  "type": "shopware-platform-plugin",
+  "license": "proprietary",
+  "require": {
+    "shopware/core": "~6.6.0 || ~6.7.0"
+  },
+  "autoload": {
+    "psr-4": {
+      "CommerceCrew\\CCChatbot\\": "src/"
+    }
+  },
+  "extra": {
+    "shopware-plugin-class": "CommerceCrew\\CCChatbot\\CCChatbot",
+    "label": {
+      "en-GB": "CCChatbot",
+      "de-DE": "CCChatbot"
+    }
+  }
+}

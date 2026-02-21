@@ -1,0 +1,12 @@
+{% sw_extends "@Storefront/storefront/layout/meta.html.twig" %}
+{#
+  CCChatbot: Context token is never output in HTML.
+  The token is obtained securely via XHR from the context controller (path: frontend.ccchatbot.context).
+#}
+
+{% block layout_head_inner %}
+    {{ parent() }}
+    {% if config('CCChatbot.config.enabled') %}
+        {% sw_include '@CCChatbot/storefront/ccchatbot/chatbot.html.twig' %}
+    {% endif %}
+{% endblock %}

@@ -68,6 +68,14 @@ Environment variables:
 2. **Origin/Referer**: matches `allowed_origins` array in DB
 3. **Shop ID** (multi-shop): `x-cc-shop-id` to select a specific shop under a tenant
 
+## Context token (Storefront)
+
+The **context token** (`sw-context-token`) identifies the guest or customer session in Shopware and is required for cart, checkout, and order APIs. It must not be exposed in HTML.
+
+- **Plugin**: The Shopware CCChatbot plugin exposes a **same-origin** endpoint (e.g. `/ccchatbot/context` or `/de/ccchatbot/context` when using a language prefix). The storefront fetches the token via XHR from this endpoint; the token is never rendered in the page.
+- **URL**: The plugin uses Twig `path('frontend.ccchatbot.context')` so the context URL is correct for the current storefront (including language prefix in Shopware 6.x).
+- **Middleware**: The storefront sends the token in the request body (`context_token`) or header (`sw-context-token`) when calling the middleware. The middleware uses it to call Shopware Store API (cart summary, orders when logged in, etc.). **Adding to cart does not require login**; guests can add items. Only order history and reordering require a logged-in customer.
+
 ## Shopware plugin settings
 
 The plugin only needs:

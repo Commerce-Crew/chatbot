@@ -1,0 +1,1674 @@
+{#
+  CCChatbot storefront widget (inline to avoid theme build issues)
+  Configuration is driven by Shopware system config (per sales channel).
+#}
+
+{% set ccCfg = {
+  version: '2026-02-08-01',
+  middlewareUrl: (config('CCChatbot.config.middlewareUrl') ?: 'https://cbshop.commerce-crew.com/api'),
+  middlewareApiKey: (config('CCChatbot.config.middlewareApiKey') ?: ''),
+  shopUrl: app.request.getSchemeAndHttpHost(),
+  shopId: context.salesChannel.id,
+  contextUrl: path('frontend.ccchatbot.context'),
+  storagePrefix: 'cc_chat_',
+  maxHistoryMessages: 50,
+  maxFileSize: 10 * 1024 * 1024,
+  analyticsEnabled: config('CCChatbot.config.analyticsEnabled') ? true : false,
+  analyticsBatchSize: 5,
+  analyticsFlushInterval: 30000,
+  debug: app.debug ? true : (config('CCChatbot.config.debug') ? true : false),
+  assistantName: (config('CCChatbot.config.assistantName') ?: 'Assistant'),
+  primaryColor: (config('CCChatbot.config.primaryColor') ?: '#0B1742'),
+  primaryColorLight: (config('CCChatbot.config.primaryColorLight') ?: '#1a2a5e'),
+  secondaryColor: (config('CCChatbot.config.secondaryColor') ?: '#ffffff'),
+  welcomeMessage: (config('CCChatbot.config.welcomeMessage') ?: ''),
+  extraInstructions: (config('CCChatbot.config.extraInstructions') ?: ''),
+  quickActions: [
+    {
+      label: (config('CCChatbot.config.quick1Label') ?: '🧤 Handschuhe'),
+      text: (config('CCChatbot.config.quick1Text') ?: 'Ich suche Handschuhe'),
+      action: 'quick_1'
+    },
+    {
+      label: (config('CCChatbot.config.quick2Label') ?: '🛒 Warenkorb'),
+      text: (config('CCChatbot.config.quick2Text') ?: 'Was ist in meinem Warenkorb?'),
+      action: 'quick_2'
+    },
+    {
+      label: (config('CCChatbot.config.quick3Label') ?: '📦 Letzte Bestellung'),
+      text: (config('CCChatbot.config.quick3Text') ?: 'Was habe ich zuletzt bestellt?'),
+      action: 'quick_3'
+    },
+    {
+      label: (config('CCChatbot.config.quick4Label') ?: '🔄 Nachbestellen'),
+      text: (config('CCChatbot.config.quick4Text') ?: 'Ich würde gerne meine letzte Bestellung nochmal bestellen.'),
+      action: 'quick_4'
+    }
+  ],
+  featureFileUpload: config('CCChatbot.config.featureFileUpload') ? true : false,
+  featureVoiceToText: config('CCChatbot.config.featureVoiceToText') ? true : false,
+  bottomBranding: (config('CCChatbot.config.bottomBranding') ?: ''),
+  leadCaptureEnabled: config('CCChatbot.config.leadCaptureEnabled') ? true : false,
+  leadCaptureLabel: (config('CCChatbot.config.leadCaptureLabel') ?: '💬 Kontakt aufnehmen')
+} %}
+
+<style>
+    /* Reset and force styles */
+    #cc-chatbot,#cc-chatbot *{box-sizing:border-box!important;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif!important}
+    #cc-chatbot{position:fixed!important;bottom:24px!important;right:24px!important;z-index:999999!important;font-size:14px!important;line-height:1.5!important}
+
+    /* CSS Variables */
+    #cc-chatbot{--cc-primary:{{ ccCfg.primaryColor }};--cc-primary-light:{{ ccCfg.primaryColorLight }};--cc-white:{{ ccCfg.secondaryColor }};--cc-gray-50:#f8fafc;--cc-gray-100:#f1f5f9;--cc-gray-200:#e2e8f0;--cc-gray-300:#cbd5e1;--cc-gray-400:#94a3b8;--cc-success:#10b981;--cc-error:#ef4444;--cc-shadow-lg:0 10px 40px rgba(11,23,66,0.3);--cc-shadow-sm:0 2px 8px rgba(11,23,66,0.1);--cc-radius-xl:24px;--cc-radius-lg:16px;--cc-radius-md:12px;--cc-radius-full:9999px;--cc-transition:all 0.25s cubic-bezier(0.4,0,0.2,1)}
+
+    /* Toggle Button */
+    #cc-chatbot .cc-toggle{width:64px!important;height:64px!important;border-radius:50%!important;background:linear-gradient(135deg,var(--cc-primary),var(--cc-primary-light))!important;border:none!important;cursor:pointer!important;box-shadow:var(--cc-shadow-lg)!important;display:flex!important;align-items:center!important;justify-content:center!important;transition:var(--cc-transition)!important;position:relative!important;padding:0!important;margin:0!important}
+    #cc-chatbot .cc-toggle:hover{transform:scale(1.08) translateY(-2px)!important}
+    #cc-chatbot .cc-toggle svg{width:28px!important;height:28px!important;fill:var(--cc-white)!important;transition:var(--cc-transition)!important}
+    #cc-chatbot .cc-toggle.active svg.icon-chat{display:none!important}
+    #cc-chatbot .cc-toggle:not(.active) svg.icon-close{display:none!important}
+
+    /* Window */
+    #cc-chatbot .cc-window{display:none!important;position:absolute!important;bottom:80px!important;right:0!important;width:420px!important;max-width:calc(100vw - 32px)!important;height:650px!important;max-height:calc(100vh - 120px)!important;background:var(--cc-white)!important;border-radius:var(--cc-radius-xl)!important;box-shadow:var(--cc-shadow-lg)!important;flex-direction:column!important;overflow:hidden!important;border:1px solid var(--cc-gray-200)!important}
+    #cc-chatbot .cc-window.open{display:flex!important;animation:cc-slide-up 0.35s cubic-bezier(0.34,1.56,0.64,1)!important}
+    @keyframes cc-slide-up{from{opacity:0;transform:translateY(24px) scale(0.96)}to{opacity:1;transform:translateY(0) scale(1)}}
+
+    /* Header */
+    #cc-chatbot .cc-header{background:linear-gradient(135deg,var(--cc-primary),var(--cc-primary-light))!important;color:var(--cc-white)!important;padding:20px!important;display:flex!important;align-items:center!important;justify-content:space-between!important;position:relative!important;overflow:hidden!important;flex-shrink:0!important}
+    #cc-chatbot .cc-header::before{content:''!important;position:absolute!important;top:-50%!important;right:-20%!important;width:200px!important;height:200px!important;background:radial-gradient(circle,rgba(255,255,255,0.1),transparent 70%)!important;pointer-events:none!important}
+    #cc-chatbot .cc-header-info{display:flex!important;align-items:center!important;gap:14px!important;position:relative!important;z-index:1!important}
+    #cc-chatbot .cc-avatar{width:48px!important;height:48px!important;border-radius:50%!important;background:rgba(255,255,255,0.15)!important;display:flex!important;align-items:center!important;justify-content:center!important;border:2px solid rgba(255,255,255,0.2)!important;flex-shrink:0!important}
+    #cc-chatbot .cc-avatar svg{width:26px!important;height:26px!important;fill:var(--cc-white)!important}
+    #cc-chatbot .cc-header-text h3{margin:0 0 2px 0!important;font-size:17px!important;font-weight:600!important;color:var(--cc-white)!important;padding:0!important;border:none!important;background:none!important}
+    #cc-chatbot .cc-status{font-size:13px!important;opacity:0.9!important;display:flex!important;align-items:center!important;gap:6px!important;color:var(--cc-white)!important}
+    #cc-chatbot .cc-status-dot{width:8px!important;height:8px!important;background:#4ade80!important;border-radius:50%!important;animation:cc-pulse 2s ease-in-out infinite!important;box-shadow:0 0 8px rgba(74,222,128,0.6)!important}
+    @keyframes cc-pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:0.7;transform:scale(0.9)}}
+    #cc-chatbot .cc-close-btn{background:rgba(255,255,255,0.1)!important;border:1px solid rgba(255,255,255,0.1)!important;color:var(--cc-white)!important;width:38px!important;height:38px!important;border-radius:50%!important;cursor:pointer!important;display:flex!important;align-items:center!important;justify-content:center!important;transition:var(--cc-transition)!important;z-index:1!important;padding:0!important}
+    #cc-chatbot .cc-close-btn:hover{background:rgba(255,255,255,0.2)!important;transform:rotate(90deg)!important}
+    #cc-chatbot .cc-close-btn svg{width:18px!important;height:18px!important;fill:currentColor!important}
+
+    /* Messages */
+    #cc-chatbot .cc-messages{flex:1!important;overflow-y:auto!important;padding:20px!important;display:flex!important;flex-direction:column!important;gap:16px!important;background:linear-gradient(180deg,var(--cc-gray-50),var(--cc-white))!important;scroll-behavior:smooth!important}
+    #cc-chatbot .cc-messages::-webkit-scrollbar{width:6px!important}
+    #cc-chatbot .cc-messages::-webkit-scrollbar-thumb{background:var(--cc-gray-300)!important;border-radius:var(--cc-radius-full)!important}
+    #cc-chatbot .cc-message{display:flex!important;gap:10px!important;max-width:85%!important;animation:cc-fade-in 0.3s ease-out!important}
+    @keyframes cc-fade-in{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+    #cc-chatbot .cc-message.user{align-self:flex-end!important;flex-direction:row-reverse!important}
+    #cc-chatbot .cc-message.bot{align-self:flex-start!important}
+    #cc-chatbot .cc-message.restored{animation:none!important}
+    #cc-chatbot .cc-bubble{padding:14px 18px!important;border-radius:var(--cc-radius-lg)!important;line-height:1.6!important;position:relative!important;word-wrap:break-word!important}
+    #cc-chatbot .cc-message.user .cc-bubble{background:linear-gradient(135deg,var(--cc-primary),var(--cc-primary-light))!important;color:var(--cc-white)!important;border-bottom-right-radius:6px!important}
+    #cc-chatbot .cc-message.bot .cc-bubble{background:var(--cc-white)!important;color:var(--cc-primary)!important;border-bottom-left-radius:6px!important;box-shadow:var(--cc-shadow-sm)!important;border:1px solid var(--cc-gray-100)!important;overflow:auto!important;overflow:overlay!important;max-width:100%!important;overflow-wrap:anywhere!important;word-break:break-word!important}
+    #cc-chatbot .cc-bubble a{color:#4a90d9!important;text-decoration:underline!important}
+    #cc-chatbot .cc-bubble pre{white-space:pre-wrap!important;overflow:auto!important;overflow:overlay!important;max-width:100%!important;margin:8px 0!important;padding:10px!important;background:var(--cc-gray-50)!important;border-radius:10px!important;border:1px solid var(--cc-gray-200)!important}
+    #cc-chatbot .cc-bubble code{word-break:break-word!important}
+    #cc-chatbot .cc-message.user .cc-bubble a{color:#a5d8ff!important}
+    #cc-chatbot .cc-bubble strong{font-weight:600!important}
+    #cc-chatbot .cc-bubble.streaming::after{content:'▋'!important;animation:cc-blink 0.8s step-end infinite!important;margin-left:2px!important;opacity:0.7!important}
+    @keyframes cc-blink{50%{opacity:0}}
+
+    /* Thinking Indicator */
+    #cc-chatbot .cc-thinking{display:flex!important;align-items:center!important;gap:12px!important;padding:16px 20px!important;background:var(--cc-white)!important;border-radius:var(--cc-radius-lg)!important;box-shadow:var(--cc-shadow-sm)!important;border:1px solid var(--cc-gray-100)!important;border-bottom-left-radius:6px!important}
+    #cc-chatbot .cc-thinking-icon{width:24px!important;height:24px!important;position:relative!important}
+    #cc-chatbot .cc-thinking-icon::before{content:''!important;position:absolute!important;width:100%!important;height:100%!important;border:3px solid var(--cc-gray-200)!important;border-top-color:var(--cc-primary)!important;border-radius:50%!important;animation:cc-spin 0.8s linear infinite!important}
+    @keyframes cc-spin{to{transform:rotate(360deg)}}
+    #cc-chatbot .cc-thinking-text{color:var(--cc-primary)!important;font-size:14px!important;font-weight:500!important}
+    #cc-chatbot .cc-thinking-dots{display:inline-flex!important;gap:3px!important;margin-left:2px!important}
+    #cc-chatbot .cc-thinking-dots span{width:4px!important;height:4px!important;background:var(--cc-primary)!important;border-radius:50%!important;animation:cc-dot-bounce 1.4s ease-in-out infinite!important}
+    #cc-chatbot .cc-thinking-dots span:nth-child(1){animation-delay:-0.32s!important}
+    #cc-chatbot .cc-thinking-dots span:nth-child(2){animation-delay:-0.16s!important}
+    #cc-chatbot .cc-thinking-dots span:nth-child(3){animation-delay:0s!important}
+    @keyframes cc-dot-bounce{0%,80%,100%{opacity:0.3!important}40%{opacity:1!important}}
+
+    /* Actions */
+    #cc-chatbot .cc-actions{display:flex!important;flex-wrap:wrap!important;gap:8px!important;margin-top:12px!important}
+    #cc-chatbot .cc-action{background:var(--cc-white)!important;border:1.5px solid var(--cc-primary)!important;color:var(--cc-primary)!important;padding:10px 18px!important;border-radius:var(--cc-radius-full)!important;font-size:13px!important;font-weight:500!important;cursor:pointer!important;transition:var(--cc-transition)!important;text-decoration:none!important;display:inline-flex!important;align-items:center!important;gap:6px!important}
+    #cc-chatbot .cc-action:hover{background:var(--cc-primary)!important;color:var(--cc-white)!important;transform:translateY(-2px)!important;box-shadow:var(--cc-shadow-sm)!important}
+    #cc-chatbot .cc-action.primary{background:var(--cc-success)!important;border-color:var(--cc-success)!important;color:var(--cc-white)!important}
+    #cc-chatbot .cc-action.primary:hover{background:#059669!important;border-color:#059669!important}
+
+    /* Alert */
+    #cc-chatbot .cc-alert{background:linear-gradient(135deg,var(--cc-success),#059669)!important;color:var(--cc-white)!important;padding:14px 18px!important;border-radius:var(--cc-radius-md)!important;margin-top:12px!important;display:flex!important;align-items:center!important;gap:12px!important;font-weight:500!important;animation:cc-slide-in 0.4s cubic-bezier(0.34,1.56,0.64,1)!important;box-shadow:0 4px 12px rgba(16,185,129,0.3)!important}
+    @keyframes cc-slide-in{from{opacity:0;transform:translateX(-20px) scale(0.95)}to{opacity:1;transform:translateX(0) scale(1)}}
+    #cc-chatbot .cc-alert svg{width:22px!important;height:22px!important;fill:currentColor!important;flex-shrink:0!important}
+
+    /* File Preview */
+    #cc-chatbot .cc-file-preview{display:flex!important;align-items:center!important;gap:8px!important;padding:8px 12px!important;background:var(--cc-gray-100)!important;border-radius:var(--cc-radius-md)!important;margin-bottom:8px!important;font-size:12px!important}
+    #cc-chatbot .cc-file-preview .cc-file-icon{width:32px!important;height:32px!important;background:var(--cc-primary)!important;border-radius:6px!important;display:flex!important;align-items:center!important;justify-content:center!important;flex-shrink:0!important}
+    #cc-chatbot .cc-file-preview .cc-file-icon svg{width:18px!important;height:18px!important;fill:white!important}
+    #cc-chatbot .cc-file-preview .cc-file-info{flex:1!important;overflow:hidden!important}
+    #cc-chatbot .cc-file-preview .cc-file-name{font-weight:500!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important;color:var(--cc-primary)!important}
+    #cc-chatbot .cc-file-preview .cc-file-size{color:var(--cc-gray-400)!important;font-size:11px!important}
+    #cc-chatbot .cc-file-preview .cc-file-remove{background:none!important;border:none!important;color:var(--cc-gray-400)!important;cursor:pointer!important;padding:4px!important;font-size:16px!important;line-height:1!important}
+    #cc-chatbot .cc-file-preview .cc-file-remove:hover{color:var(--cc-error)!important}
+
+    /* Input Area */
+    #cc-chatbot .cc-input-area{padding:12px 16px!important;background:var(--cc-white)!important;border-top:1px solid var(--cc-gray-200)!important;flex-shrink:0!important}
+    #cc-chatbot .cc-input-wrapper{display:flex!important;gap:8px!important;align-items:center!important}
+    #cc-chatbot .cc-input{flex:1!important;border:2px solid var(--cc-gray-200)!important;border-radius:var(--cc-radius-full)!important;padding:12px 18px!important;font-size:14px!important;font-family:inherit!important;outline:none!important;transition:var(--cc-transition)!important;background:var(--cc-gray-50)!important;color:var(--cc-primary)!important;min-width:0!important}
+    #cc-chatbot .cc-input:focus{border-color:var(--cc-primary)!important;background:var(--cc-white)!important;box-shadow:0 0 0 4px rgba(11,23,66,0.1)!important}
+    #cc-chatbot .cc-input::placeholder{color:var(--cc-gray-400)!important}
+
+    /* Icon Buttons */
+    #cc-chatbot .cc-icon-btn{width:44px!important;height:44px!important;border-radius:50%!important;border:none!important;cursor:pointer!important;display:flex;align-items:center!important;justify-content:center!important;transition:var(--cc-transition)!important;flex-shrink:0!important;background:var(--cc-gray-100)!important;color:var(--cc-primary)!important;padding:0!important}
+    #cc-chatbot .cc-icon-btn:hover{background:var(--cc-gray-200)!important}
+    #cc-chatbot .cc-icon-btn:disabled{opacity:0.5!important;cursor:not-allowed!important}
+    #cc-chatbot .cc-icon-btn svg{width:20px!important;height:20px!important;fill:currentColor!important}
+    #cc-chatbot .cc-icon-btn.primary{background:linear-gradient(135deg,var(--cc-primary),var(--cc-primary-light))!important;color:white!important}
+    #cc-chatbot .cc-icon-btn.primary:hover{transform:scale(1.05)!important}
+    #cc-chatbot .cc-icon-btn.recording{background:var(--cc-error)!important;color:white!important;animation:cc-pulse-recording 1s ease-in-out infinite!important}
+    @keyframes cc-pulse-recording{0%,100%{box-shadow:0 0 0 0 rgba(239,68,68,0.4)}50%{box-shadow:0 0 0 12px rgba(239,68,68,0)}}
+
+    /* Voice Indicator */
+    #cc-chatbot .cc-voice-indicator{display:none!important;align-items:center!important;gap:8px!important;padding:8px 16px!important;background:var(--cc-error)!important;color:white!important;border-radius:var(--cc-radius-full)!important;font-size:13px!important;font-weight:500!important;margin-bottom:8px!important}
+    #cc-chatbot .cc-voice-indicator.active{display:flex!important}
+    #cc-chatbot .cc-voice-indicator .cc-voice-waves{display:flex!important;gap:3px!important;align-items:center!important}
+    #cc-chatbot .cc-voice-indicator .cc-voice-waves span{width:3px!important;background:white!important;border-radius:2px!important;animation:cc-wave 0.5s ease-in-out infinite!important}
+    #cc-chatbot .cc-voice-indicator .cc-voice-waves span:nth-child(1){height:12px!important;animation-delay:0s!important}
+    #cc-chatbot .cc-voice-indicator .cc-voice-waves span:nth-child(2){height:18px!important;animation-delay:0.1s!important}
+    #cc-chatbot .cc-voice-indicator .cc-voice-waves span:nth-child(3){height:12px!important;animation-delay:0.2s!important}
+    #cc-chatbot .cc-voice-indicator .cc-voice-waves span:nth-child(4){height:20px!important;animation-delay:0.3s!important}
+    #cc-chatbot .cc-voice-indicator .cc-voice-waves span:nth-child(5){height:14px!important;animation-delay:0.4s!important}
+    @keyframes cc-wave{0%,100%{transform:scaleY(1)}50%{transform:scaleY(0.5)}}
+
+    /* Footer */
+    #cc-chatbot .cc-footer{padding:8px!important;text-align:center!important;font-size:11px!important;color:var(--cc-gray-400)!important;background:var(--cc-gray-50)!important;border-top:1px solid var(--cc-gray-100)!important;flex-shrink:0!important}
+    #cc-chatbot .cc-clear-btn{background:none!important;border:none!important;color:var(--cc-gray-400)!important;cursor:pointer!important;font-size:11px!important;text-decoration:underline!important;margin-left:8px!important;padding:0!important}
+    #cc-chatbot .cc-clear-btn:hover{color:var(--cc-primary)!important}
+
+    /* Stats panel */
+    #cc-chatbot .cc-stats-panel{position:absolute!important;inset:0!important;background:rgba(255,255,255,0.98)!important;display:none!important;flex-direction:column!important;z-index:5!important}
+    #cc-chatbot .cc-stats-panel.open{display:flex!important}
+    #cc-chatbot .cc-stats-header{display:flex!important;align-items:center!important;justify-content:space-between!important;padding:16px!important;border-bottom:1px solid var(--cc-gray-200)!important;font-weight:600!important;color:var(--cc-primary)!important}
+    #cc-chatbot .cc-stats-body{padding:16px!important;overflow:auto!important;flex:1!important}
+    #cc-chatbot .cc-stats-grid{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:12px!important;margin-bottom:16px!important}
+    #cc-chatbot .cc-stats-card{background:var(--cc-white)!important;border:1px solid var(--cc-gray-200)!important;border-radius:12px!important;padding:12px!important;box-shadow:var(--cc-shadow-sm)!important}
+    #cc-chatbot .cc-stats-card .label{font-size:11px!important;color:var(--cc-gray-400)!important;margin-bottom:4px!important}
+    #cc-chatbot .cc-stats-card .value{font-size:16px!important;color:var(--cc-primary)!important;font-weight:600!important}
+    #cc-chatbot .cc-stats-list{margin:0!important;padding:0!important;list-style:none!important}
+    #cc-chatbot .cc-stats-list li{padding:8px 0!important;border-bottom:1px solid var(--cc-gray-100)!important}
+    #cc-chatbot .cc-stats-list li:last-child{border-bottom:none!important}
+    #cc-chatbot .cc-stats-body .muted{color:var(--cc-gray-400)!important;font-size:11px!important}
+
+    /* Mobile Styles */
+    @media(max-width:480px){
+        #cc-chatbot{bottom:0!important;right:0!important;left:0!important;top:0!important;pointer-events:none!important}
+        #cc-chatbot .cc-toggle{position:fixed!important;bottom:20px!important;right:20px!important;pointer-events:auto!important}
+        #cc-chatbot .cc-window{position:fixed!important;top:0!important;left:0!important;right:0!important;bottom:0!important;width:100%!important;height:100%!important;max-width:100%!important;max-height:100%!important;border-radius:0!important;pointer-events:auto!important}
+        #cc-chatbot .cc-window.open{display:flex!important}
+    }
+</style>
+
+<div id="cc-chatbot">
+    <button class="cc-toggle" id="ccToggle" aria-label="Chat öffnen">
+        <svg class="icon-chat" viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z"/></svg>
+        <svg class="icon-close" viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+    </button>
+    <div class="cc-window" id="ccWindow">
+        <div class="cc-header">
+            <div class="cc-header-info">
+                <div class="cc-avatar"><svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"/></svg></div>
+                <div class="cc-header-text">
+                    <h3>{{ ccCfg.assistantName }}</h3>
+                    <span class="cc-status"><span class="cc-status-dot"></span>Online</span>
+                </div>
+            </div>
+            <button class="cc-close-btn" id="ccClose"><svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg></button>
+        </div>
+        <div class="cc-messages" id="ccMessages"></div>
+        <div class="cc-input-area">
+            <div id="ccFilePreview"></div>
+            <div class="cc-voice-indicator" id="ccVoiceIndicator">
+                <div class="cc-voice-waves"><span></span><span></span><span></span><span></span><span></span></div>
+                <span>Aufnahme...</span>
+            </div>
+            <div class="cc-input-wrapper">
+                <input type="file" id="ccFileInput" accept="image/*,.pdf,.doc,.docx,.txt" style="display:none!important">
+                <button class="cc-icon-btn" id="ccFileBtn" title="Bild hinzufügen">
+                    <svg viewBox="0 0 24 24"><path d="M16.5 6.5V17c0 2.21-1.79 4-4 4s-4-1.79-4-4V5c0-1.1.9-2 2-2s2 .9 2 2v10.5c0 .83-.67 1.5-1.5 1.5S9.5 16.33 9.5 15.5V6.5H8V15.5c0 1.66 1.34 3 3 3s3-1.34 3-3V5c0-1.93-1.57-3.5-3.5-3.5S7 3.07 7 5v12c0 3.03 2.47 5.5 5.5 5.5S18 20.03 18 17V6.5h-1.5z"/></svg>
+                </button>
+                <button class="cc-icon-btn" id="ccVoiceBtn" title="Spracheingabe">
+                    <svg viewBox="0 0 24 24"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.91-3c-.49 0-.9.36-.98.85C16.52 14.2 14.47 16 12 16s-4.52-1.8-4.93-4.15c-.08-.49-.49-.85-.98-.85-.61 0-1.09.54-1 1.14.49 3 2.89 5.35 5.91 5.78V20c0 .55.45 1 1 1s1-.45 1-1v-2.08c3.02-.43 5.42-2.78 5.91-5.78.1-.6-.39-1.14-1-1.14z"/></svg>
+                </button>
+                <input type="text" class="cc-input" id="ccInput" placeholder="Ihre Nachricht...">
+                <button class="cc-icon-btn primary" id="ccSend" title="Senden">
+                    <svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+                </button>
+            </div>
+        </div>
+        <div class="cc-footer">
+            {{ ccCfg.bottomBranding }}
+            <button class="cc-clear-btn" id="ccClear">Chat löschen</button>
+            <button class="cc-clear-btn" id="ccLead">{{ ccCfg.leadCaptureLabel }}</button>
+        </div>
+    </div>
+</div>
+
+<script>
+window.CCChatbotConfig = {{ ccCfg|json_encode|raw }};
+</script>
+
+<script>
+(function() {
+    'use strict';
+
+    // =================================================================
+    // CONFIGURATION
+    // =================================================================
+    const CONFIG = Object.assign({
+        version: 'dev',
+        middlewareUrl: 'https://cbshop.commerce-crew.com/api',
+        middlewareApiKey: '',
+        shopUrl: window.location.origin,
+        shopId: '',
+        contextUrl: '',
+        storagePrefix: 'cc_chat_',
+        maxHistoryMessages: 50,
+        maxFileSize: 10 * 1024 * 1024,
+        analyticsEnabled: true,
+        analyticsBatchSize: 5,
+        analyticsFlushInterval: 30000,
+        debug: false,
+        assistantName: 'Assistant',
+        welcomeMessage: '',
+        extraInstructions: '',
+        quickActions: [],
+        featureFileUpload: true,
+        featureVoiceToText: true,
+        bottomBranding: '',
+        leadCaptureEnabled: false,
+        leadCaptureLabel: '💬 Kontakt aufnehmen',
+        contextTokenTtlMs: 20 * 60 * 1000
+    }, window.CCChatbotConfig || {});
+
+    const VERSION = CONFIG.version || 'dev';
+    const log = (msg, data) => { if (CONFIG.debug) console.log(`[CCChatbot] ${msg}`, data !== undefined ? data : ''); };
+
+    log('Loaded', { version: VERSION, debug: CONFIG.debug, shopId: CONFIG.shopId, middlewareUrl: CONFIG.middlewareUrl });
+    window.CCChatbotVersion = VERSION;
+
+    function authHeaders(extra = {}) {
+        const headers = { ...extra };
+        if (CONFIG.middlewareApiKey) {
+            headers['x-cc-api-key'] = CONFIG.middlewareApiKey;
+        }
+        if (CONFIG.shopId) {
+            headers['x-cc-shop-id'] = CONFIG.shopId;
+        }
+        return headers;
+    }
+
+    function maskToken(token) {
+        if (!token) return null;
+        const value = String(token);
+        if (value.length <= 12) return `${value.slice(0, 4)}...`;
+        return `${value.slice(0, 6)}...${value.slice(-4)}`;
+    }
+
+    /**
+     * Get context token from page (cookie, meta, window) - same as DK shop.
+     * Use when /ccchatbot/context returns 403/404 so add-to-cart still works on same-origin.
+     */
+    function getContextTokenFromPage() {
+        try {
+            if (typeof window.salesChannelContext !== 'undefined' && window.salesChannelContext && window.salesChannelContext.token) {
+                return String(window.salesChannelContext.token).trim() || null;
+            }
+        } catch (e) {}
+        try {
+            const cookies = document.cookie.split(';');
+            for (const cookie of cookies) {
+                const [name, value] = cookie.trim().split('=');
+                if (name === 'sw-context-token' && value) return String(value).trim();
+            }
+        } catch (e) {}
+        try {
+            const meta = document.querySelector('meta[name="sw-context-token"]');
+            if (meta && meta.content) return String(meta.content).trim();
+        } catch (e) {}
+        try {
+            const stored = localStorage.getItem('sw-context-token');
+            if (stored) return String(stored).trim();
+        } catch (e) {}
+        return null;
+    }
+
+    async function fetchShopwareContextToken(reason = 'unknown') {
+        const contextUrl = (CONFIG.contextUrl || '/ccchatbot/context').replace(/^\s+|\s+$/g, '');
+        if (CONFIG.debug) log('Context fetch', { reason, url: contextUrl });
+        try {
+            const response = await fetch(contextUrl, {
+                method: 'GET',
+                credentials: 'include',
+                headers: {
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            });
+
+            if (!response.ok) {
+                log('Shopware context endpoint failed', { reason, status: response.status, url: contextUrl });
+                return null;
+            }
+
+            const json = await response.json().catch(() => null);
+            const bodyToken = json?.context_token || json?.contextToken || null;
+            const languageIdFromEndpoint = json?.language_id || null;
+            if (languageIdFromEndpoint) {
+                state.languageId = languageIdFromEndpoint;
+            }
+            if (bodyToken) {
+                setContextToken(bodyToken, `shopware_context:${reason}`);
+            }
+            return bodyToken || null;
+        } catch (error) {
+            log('Shopware context endpoint error', { reason, error: error.message });
+            return null;
+        }
+    }
+
+    let contextTokenFetchPromise = null;
+
+    async function ensureContextToken(reason = 'unknown') {
+        const existing = getContextToken();
+        if (existing) return existing;
+
+        if (!contextTokenFetchPromise) {
+            contextTokenFetchPromise = (async () => {
+                let token = await fetchShopwareContextToken(reason);
+                if (!token) {
+                    token = getContextTokenFromPage();
+                    if (token) {
+                        setContextToken(token, `page_fallback:${reason}`);
+                        if (CONFIG.debug) log('Context token from page (cookie/meta/window)', { reason, token: maskToken(token) });
+                    }
+                }
+                return token || null;
+            })().finally(() => {
+                contextTokenFetchPromise = null;
+            });
+        }
+
+        return contextTokenFetchPromise;
+    }
+
+    async function refreshContextToken(reason = 'unknown') {
+        try {
+            const current = await ensureContextToken(`middleware_refresh:${reason}`);
+            if (!current) {
+                log('Context refresh skipped (missing storefront token)', { reason });
+                return;
+            }
+            const startedAt = Date.now();
+            const resp = await fetch(`${CONFIG.middlewareUrl}/context/refresh`, {
+                method: 'POST',
+                headers: authHeaders({
+                    'Content-Type': 'application/json',
+                    ...(current ? { 'sw-context-token': current } : {})
+                }),
+                credentials: 'include',
+                body: JSON.stringify({ context_token: current })
+            });
+
+            const headerToken = resp.headers.get('sw-context-token');
+            let jsonToken = null;
+            if (resp.ok) {
+                const json = await resp.json().catch(() => null);
+                jsonToken = json?.context_token || json?.token || json?.contextToken || null;
+            }
+
+            const token = headerToken || jsonToken;
+            if (token) {
+                setContextToken(token, `middleware_context:${reason}`);
+            } else {
+                log('Context refresh: no token in response', { reason, status: resp.status });
+            }
+            log('Context refresh response', {
+                reason,
+                status: resp.status,
+                ms: Date.now() - startedAt,
+                token: maskToken(token)
+            });
+        } catch (e) {
+            log('Context refresh error', { reason, error: e.message });
+        }
+    }
+
+
+    // =================================================================
+    // ANONYMOUS ANALYTICS
+    // =================================================================
+    const analytics = {
+        sessionId: 'sess_' + Math.random().toString(36).substr(2, 12),
+        sessionStart: Date.now(),
+        events: [],
+
+        track(eventType, data = {}) {
+            if (!CONFIG.analyticsEnabled) return;
+
+            const event = {
+                type: eventType,
+                timestamp: Date.now(),
+                sessionId: this.sessionId,
+                ...data
+            };
+
+            this.events.push(event);
+            log('Analytics:', { eventType, data });
+
+            if (this.events.length >= CONFIG.analyticsBatchSize) {
+                this.flush();
+            }
+        },
+
+        async flush() {
+            if (!CONFIG.analyticsEnabled) return;
+            if (this.events.length === 0) return;
+
+            const eventsToSend = [...this.events];
+            this.events = [];
+
+            try {
+                await fetch(`${CONFIG.middlewareUrl}/analytics`, {
+                    method: 'POST',
+                    credentials: 'include',
+                    headers: authHeaders({ 'Content-Type': 'application/json' }),
+                    body: JSON.stringify({
+                        events: eventsToSend,
+                        session: {
+                            id: this.sessionId,
+                            duration: Date.now() - this.sessionStart
+                        }
+                    })
+                });
+                log('Analytics flushed:', eventsToSend.length + ' events');
+            } catch (e) {
+                // Put events back to retry later
+                this.events = [...eventsToSend, ...this.events];
+                log('Analytics flush failed:', e.message);
+            }
+        },
+
+        getSummary() {
+            return {
+                sessionId: this.sessionId,
+                sessionDuration: Math.round((Date.now() - this.sessionStart) / 1000) + 's',
+                pendingEvents: this.events.length
+            };
+        }
+    };
+
+    window.addEventListener('beforeunload', () => analytics.flush());
+    setInterval(() => analytics.flush(), CONFIG.analyticsFlushInterval);
+
+    // =================================================================
+    // STATE
+    // =================================================================
+    const state = {
+        conversationId: localStorage.getItem(CONFIG.storagePrefix + 'conv') || null,
+        userId: localStorage.getItem(CONFIG.storagePrefix + 'user') || (() => {
+            const id = 'user-' + Math.random().toString(36).substr(2, 12);
+            localStorage.setItem(CONFIG.storagePrefix + 'user', id);
+            return id;
+        })(),
+        messages: [],
+        cart: { items: [], total: 0, itemCount: 0 },
+        pendingFiles: [],
+        isRecording: false,
+        isOpen: false,
+        isLoading: false,
+        messageCount: 0,
+        contextToken: null,
+        contextTokenSource: null,
+        contextTokenUpdatedAt: 0,
+        languageId: null
+    };
+
+    // =================================================================
+    // DOM ELEMENTS
+    // =================================================================
+    const $ = sel => document.querySelector(sel);
+    const els = {
+        toggle: $('#ccToggle'),
+        window: $('#ccWindow'),
+        close: $('#ccClose'),
+        messages: $('#ccMessages'),
+        input: $('#ccInput'),
+        send: $('#ccSend'),
+        clear: $('#ccClear'),
+        lead: $('#ccLead'),
+        fileInput: $('#ccFileInput'),
+        fileBtn: $('#ccFileBtn'),
+        filePreview: $('#ccFilePreview'),
+        voiceBtn: $('#ccVoiceBtn'),
+        voiceIndicator: $('#ccVoiceIndicator')
+    };
+
+    // If the widget is included multiple times, bail
+    if (!els.toggle || !els.window) {
+        return;
+    }
+
+    // Feature toggles
+    if (!CONFIG.featureFileUpload) {
+        try { els.fileBtn.style.display = 'none'; } catch (_) {}
+    }
+    if (!CONFIG.featureVoiceToText) {
+        try { els.voiceBtn.style.display = 'none'; } catch (_) {}
+    }
+    if (!CONFIG.leadCaptureEnabled) {
+        try { els.lead.style.display = 'none'; } catch (_) {}
+    }
+
+    // =================================================================
+    // SHOPWARE CONTEXT TOKEN
+    // =================================================================
+    function clearContextToken(reason = 'unknown') {
+        if (!state.contextToken) return;
+        log('Context token cleared', { reason, source: state.contextTokenSource || 'unknown' });
+        state.contextToken = null;
+        state.contextTokenSource = null;
+        state.contextTokenUpdatedAt = 0;
+    }
+
+    function setContextToken(token, source = 'unknown') {
+        const value = token ? String(token) : '';
+        if (!value) return;
+
+        const normalized = value.trim();
+        if (!normalized) return;
+
+        const changed = state.contextToken !== normalized;
+        state.contextToken = normalized;
+        state.contextTokenSource = source;
+        state.contextTokenUpdatedAt = Date.now();
+
+        log('Context token updated', { source, token: maskToken(normalized), changed });
+    }
+
+    function getContextToken() {
+        if (!state.contextToken) return null;
+
+        const age = Date.now() - (state.contextTokenUpdatedAt || 0);
+        if (CONFIG.contextTokenTtlMs && age > CONFIG.contextTokenTtlMs) {
+            log('Context token stale', { ageMs: age, ttlMs: CONFIG.contextTokenTtlMs });
+            clearContextToken('ttl_expired');
+            return null;
+        }
+
+        if (CONFIG.debug) {
+            log('Context token (cached)', {
+                source: state.contextTokenSource || 'cache',
+                token: maskToken(state.contextToken)
+            });
+        }
+
+        return state.contextToken;
+    }
+
+    function getLanguageId() {
+        return state.languageId || null;
+    }
+
+    function getLanguageCode() {
+        const docLang = (document.documentElement && document.documentElement.lang) ? document.documentElement.lang : '';
+        if (docLang) return docLang;
+        if (Array.isArray(navigator.languages) && navigator.languages.length) return navigator.languages[0];
+        return navigator.language || 'de-DE';
+    }
+
+    // =================================================================
+    // HISTORY PERSISTENCE
+    // =================================================================
+    function saveHistory() {
+        try {
+            const toSave = state.messages.slice(-CONFIG.maxHistoryMessages).map(msg => ({
+                text: msg.text,
+                isUser: msg.isUser,
+                timestamp: msg.timestamp
+            }));
+            localStorage.setItem(CONFIG.storagePrefix + 'history', JSON.stringify(toSave));
+        } catch (e) { log('History save error:', e.message); }
+    }
+
+    function loadHistory() {
+        try {
+            const saved = localStorage.getItem(CONFIG.storagePrefix + 'history');
+            if (saved) {
+                state.messages = JSON.parse(saved);
+                state.messages = state.messages.filter(m => !m.imageUrl?.startsWith('blob:'));
+                return state.messages;
+            }
+        } catch (e) {
+            log('History load error:', e.message);
+            localStorage.removeItem(CONFIG.storagePrefix + 'history');
+        }
+        return [];
+    }
+
+    function clearHistory() {
+        state.messages = [];
+        state.conversationId = null;
+        localStorage.removeItem(CONFIG.storagePrefix + 'history');
+        localStorage.removeItem(CONFIG.storagePrefix + 'conv');
+        els.messages.innerHTML = '';
+        renderWelcomeMessage();
+        analytics.track('chat_cleared');
+    }
+
+    // =================================================================
+    // CART FUNCTIONS
+    // =================================================================
+    function parsePrice(text) {
+        if (!text) return 0;
+        return parseFloat(text.replace(/[^\d,.-]/g, '').replace(/\.(?=\d{3})/g, '').replace(',', '.')) || 0;
+    }
+
+    function refreshStorefrontCartWidget() {
+        if (!window.PluginManager) return;
+        try {
+            const cartWidget = document.querySelector('[data-cart-widget]');
+            if (!cartWidget) return;
+            const plugin = window.PluginManager.getPluginInstanceFromElement(cartWidget, 'CartWidget');
+            if (plugin?.fetch) plugin.fetch();
+        } catch (_) {}
+    }
+
+    async function fetchCart() {
+        try {
+            // Prefer Store API cart summary via middleware (reliable IDs for delete/update)
+            const token = await ensureContextToken('fetchCart');
+            if (token) {
+                const sumResp = await fetch(`${CONFIG.middlewareUrl}/cart/summary`, {
+                    method: 'POST',
+                    credentials: 'include',
+                    headers: authHeaders({
+                        'Content-Type': 'application/json',
+                        'sw-context-token': token
+                    }),
+                    body: JSON.stringify({ context_token: token })
+                });
+
+                const headerToken = sumResp.headers.get('sw-context-token') || null;
+                if (headerToken) setContextToken(headerToken, 'cart_summary_header');
+
+                if (sumResp.ok) {
+                    const json = await sumResp.json().catch(() => null);
+                    const payloadToken = json?.context_token || json?.token || json?.contextToken || null;
+                    if (payloadToken) setContextToken(payloadToken, 'cart_summary_body');
+
+                    if (json?.success && json?.cart) {
+                        state.cart = json.cart;
+                        return state.cart;
+                    }
+                }
+            }
+
+            // Fallback: parse offcanvas HTML
+            const resp = await fetch('/checkout/offcanvas', { credentials: 'include' });
+            const responseToken = resp.headers.get('sw-context-token') || null;
+            if (responseToken) setContextToken(responseToken, 'offcanvas');
+            if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+
+            const html = await resp.text();
+            const doc = document.createElement('div');
+            doc.innerHTML = html;
+            const itemsMap = new Map();
+            doc.querySelectorAll('.line-item-row').forEach(row => {
+                const qtyInput = row.querySelector('input[name="quantity"]');
+                if (!qtyInput) return;
+                const linkEl = row.querySelector('a[title]');
+                if (!linkEl) return;
+                const url = linkEl.getAttribute('href') || '';
+                if (itemsMap.has(url)) return;
+                const name = linkEl.getAttribute('title') || '';
+                const quantity = parseInt(qtyInput.value || '1', 10);
+                const price = parsePrice(row.querySelector('.line-item-unit-price-value')?.textContent);
+                const totalPrice = parsePrice(row.querySelector('.line-item-total-price-value')?.textContent) || (price * quantity);
+
+                // Line item id can be extracted from delete form action
+                const deleteAction = row.querySelector('form[action*="/checkout/line-item/delete"]')?.getAttribute('action') || '';
+                const lineItemMatch = deleteAction.match(/\/checkout\/line-item\/delete\/([a-f0-9]{32})/i);
+
+                // Product id can sometimes be extracted from the detail URL
+                const productMatch = url.match(/\/([a-f0-9]{32})/i);
+
+                itemsMap.set(url, {
+                    id: lineItemMatch?.[1] || productMatch?.[1] || null,
+                    productId: productMatch?.[1] || null,
+                    name,
+                    quantity,
+                    price,
+                    totalPrice,
+                    url
+                });
+            });
+            const items = Array.from(itemsMap.values());
+            state.cart = { items, itemCount: items.reduce((s, i) => s + i.quantity, 0), total: items.reduce((s, i) => s + i.totalPrice, 0) };
+            return state.cart;
+        } catch (err) {
+            log('Cart fetch error:', err.message);
+            return state.cart;
+        }
+    }
+
+    async function removeFromCart(lineItemId) {
+        if (!lineItemId) return { success: false, error: 'missing_line_item_id' };
+        try {
+            const formData = new FormData();
+            formData.append('redirectTo', 'frontend.cart.offcanvas');
+
+            const response = await fetch(`/checkout/line-item/delete/${lineItemId}`, {
+                method: 'POST',
+                body: formData,
+                credentials: 'include'
+            });
+            const responseToken = response.headers.get('sw-context-token') || null;
+            if (responseToken) setContextToken(responseToken, 'remove_from_cart');
+
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+            refreshStorefrontCartWidget();
+            await fetchCart();
+            analytics.track('cart_remove', { lineItemId });
+            return { success: true };
+        } catch (error) {
+            analytics.track('cart_remove_error', { lineItemId, error: error.message });
+            return { success: false, error: error.message };
+        }
+    }
+
+    async function updateCartQuantity(lineItemId, quantity) {
+        if (!lineItemId) return { success: false, error: 'missing_line_item_id' };
+        const qty = parseInt(quantity, 10) || 1;
+
+        try {
+            const formData = new FormData();
+            formData.append('redirectTo', 'frontend.cart.offcanvas');
+            formData.append('quantity', qty.toString());
+
+            const response = await fetch(`/checkout/line-item/change-quantity/${lineItemId}`, {
+                method: 'POST',
+                body: formData,
+                credentials: 'include'
+            });
+            const responseToken = response.headers.get('sw-context-token') || null;
+            if (responseToken) setContextToken(responseToken, 'update_cart_qty');
+
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+            refreshStorefrontCartWidget();
+            await fetchCart();
+            analytics.track('cart_update_qty', { lineItemId, quantity: qty });
+            return { success: true };
+        } catch (error) {
+            analytics.track('cart_update_qty_error', { lineItemId, quantity: qty, error: error.message });
+            return { success: false, error: error.message };
+        }
+    }
+
+    async function addToCart(productId, quantity = 1) {
+        const qty = parseInt(quantity, 10) || 1;
+        log('Adding to cart', { productId, quantity: qty, url: '/checkout/line-item/add' });
+
+        const formData = new FormData();
+        formData.append('redirectTo', 'frontend.cart.offcanvas');
+        formData.append(`lineItems[${productId}][id]`, productId);
+        formData.append(`lineItems[${productId}][referencedId]`, productId);
+        formData.append(`lineItems[${productId}][type]`, 'product');
+        formData.append(`lineItems[${productId}][stackable]`, '1');
+        formData.append(`lineItems[${productId}][removable]`, '1');
+        formData.append(`lineItems[${productId}][quantity]`, String(qty));
+
+        try {
+            const response = await fetch('/checkout/line-item/add', {
+                method: 'POST',
+                body: formData,
+                credentials: 'include',
+                headers: { 'Accept': 'text/html,application/xhtml+xml' }
+            });
+
+            const responseToken = response.headers.get('sw-context-token') || null;
+            if (responseToken) setContextToken(responseToken, 'add_to_cart');
+
+            if (response.ok) {
+                if (CONFIG.debug) log('Add to cart OK', { productId, status: response.status });
+                refreshStorefrontCartWidget();
+                await fetchCart();
+                analytics.track('cart_add', { productId, quantity: qty });
+                return { success: true };
+            }
+
+            let errBody = '';
+            try { errBody = await response.text(); } catch (_) {}
+            if (CONFIG.debug) log('Add to cart HTTP error', { productId, status: response.status, bodyPreview: errBody ? errBody.slice(0, 200) : '' });
+            throw new Error(`HTTP ${response.status}${errBody ? ' - ' + errBody.slice(0, 100) : ''}`);
+        } catch (error) {
+            log('Add to cart error', { productId, error: error.message });
+            analytics.track('cart_add_error', { productId, error: error.message });
+            return { success: false, error: error.message };
+        }
+    }
+
+    async function clearCart() {
+        log('Clearing cart...');
+        try {
+            for (const item of state.cart.items) {
+                if (item.id) {
+                    const response = await fetch(`/checkout/line-item/delete/${item.id}`, {
+                        method: 'POST',
+                        credentials: 'include'
+                    });
+                    const responseToken = response.headers.get('sw-context-token') || null;
+                    if (responseToken) setContextToken(responseToken, 'clear_cart');
+                }
+            }
+
+            refreshStorefrontCartWidget();
+            await fetchCart();
+            analytics.track('cart_cleared');
+            return { success: true };
+        } catch (error) {
+            log('Clear cart error:', error.message);
+            return { success: false, error: error.message };
+        }
+    }
+
+    // =================================================================
+    // PRODUCT SUGGESTIONS (TOP 3) - Buttons only
+    // =================================================================
+    function renderProductSuggestions(payload, bubbleContent) {
+        try {
+            if (!payload || !bubbleContent) return;
+            const selectionId = payload.selection_id;
+            const suggestions = Array.isArray(payload.suggestions) ? payload.suggestions.slice(0, 3) : [];
+            const qty = payload.quantity || 1;
+
+            if (!selectionId || !suggestions.length) return;
+
+            const buttons = suggestions.map((p) => {
+                const name = p.name || 'Produkt';
+                const price = p.priceFormatted || (p.price ? `${p.price} €` : '');
+                const label = price ? `${name} (${price})` : name;
+                return `<button class="cc-action primary cc-suggest-btn" data-selection-id="${selectionId}" data-product-id="${p.id}" data-qty="${qty}" title="${escapeHtml(name)}">${escapeHtml(label)}</button>`;
+            }).join('');
+
+            const block = document.createElement('div');
+            block.className = 'cc-suggestions';
+            block.innerHTML = `
+                <div class="cc-alert" style="background:#eef2ff;border-color:#c7d2fe">
+                    <svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 100 20 10 10 0 000-20zm1 14h-2v-2h2v2zm0-4h-2V7h2v5z"/></svg>
+                    <span>Top 3 Treffer – bitte auswählen:</span>
+                </div>
+                <div class="cc-actions cc-suggest-actions">${buttons}</div>
+            `;
+
+            bubbleContent.appendChild(block);
+            bindSuggestionButtons(block, bubbleContent);
+            scrollToBottom();
+        } catch (_) {}
+    }
+
+    function bindSuggestionButtons(container, bubbleContent) {
+        const btns = container.querySelectorAll('.cc-suggest-btn');
+        btns.forEach(btn => {
+            btn.addEventListener('click', async () => {
+                const selectionId = btn.getAttribute('data-selection-id');
+                const productId = btn.getAttribute('data-product-id');
+                const qty = parseInt(btn.getAttribute('data-qty'), 10) || 1;
+
+                btns.forEach(b => b.disabled = true);
+                btn.textContent = 'Wird hinzugefügt...';
+
+                analytics.track('suggestion_confirm', { selectionId, productId, qty });
+
+                try {
+                    const response = await fetch(`${CONFIG.middlewareUrl}/products/confirm`, {
+                        method: 'POST',
+                        credentials: 'include',
+                        headers: authHeaders({ 'Content-Type': 'application/json' }),
+                        body: JSON.stringify({
+                            selection_id: selectionId,
+                            product_id: productId,
+                            quantity: qty,
+                            userId: state.userId
+                        })
+                    });
+
+                    const data = await response.json().catch(() => null);
+                    if (!response.ok || !data?.success) {
+                        throw new Error(data?.message || `HTTP ${response.status}`);
+                    }
+
+                    try { container.remove(); } catch (_) {}
+
+                    const action = data.action || null;
+                    if (action) {
+                        await executeCartActions([action], bubbleContent);
+                    } else {
+                        await addToCart(productId, qty);
+                        bubbleContent.innerHTML += `<div class="cc-alert"><svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg><span>Artikel hinzugefügt!</span></div>`;
+                    }
+                } catch (e) {
+                    analytics.track('suggestion_confirm_error', { selectionId, productId, error: e.message });
+                    bubbleContent.innerHTML += `<div class="cc-alert" style="background:#fee2e2;border-color:#fecaca"><svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg><span>Fehler beim Hinzufügen. Bitte erneut versuchen.</span></div>`;
+                    btns.forEach(b => b.disabled = false);
+                    btn.textContent = 'Erneut versuchen';
+                } finally {
+                    scrollToBottom();
+                }
+            });
+        });
+    }
+
+    // =================================================================
+    // CART ACTION EXECUTION
+    // =================================================================
+    async function executeCartActions(actions, bubbleContent) {
+        if (!Array.isArray(actions) || !actions.length || !bubbleContent) return;
+
+        log('Execute cart actions', actions.map(a => ({
+            type: a?.type,
+            productId: a?.productId || null,
+            lineItemId: a?.lineItemId || null,
+            quantity: a?.quantity || null
+        })));
+
+        let addedAny = false;
+
+        for (const a of actions) {
+            if (!a || !a.type) continue;
+
+            if (a.type === 'add' && a.productId) {
+                log('Cart action add', { productId: a.productId, quantity: a.quantity || 1 });
+                const result = await addToCart(a.productId, a.quantity || 1);
+                log('Cart action add result', { success: result.success, error: result.error || null });
+                if (result.success) {
+                    addedAny = true;
+                    bubbleContent.innerHTML += `<div class="cc-alert"><svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg><span>${escapeHtml(a.productName || 'Artikel')} hinzugefügt!</span></div>`;
+                } else {
+                    bubbleContent.innerHTML += `<div class="cc-alert" style="background:#fee2e2;border-color:#fecaca"><svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg><span>Fehler beim Hinzufügen: ${escapeHtml(a.productName || 'Artikel')}</span></div>`;
+                }
+            } else if (a.type === 'remove') {
+                log('Cart action remove', { lineItemId: a.lineItemId || null, productId: a.productId || null });
+                await fetchCart();
+                let lineItemId = a.lineItemId;
+                if (!lineItemId && a.productId) {
+                    const match = state.cart.items.find(i => i.productId === a.productId || i.id === a.productId);
+                    lineItemId = match?.id || null;
+                }
+                const result = await removeFromCart(lineItemId);
+                log('Cart action remove result', { success: result.success, error: result.error || null });
+                if (result.success) {
+                    bubbleContent.innerHTML += `<div class="cc-alert"><svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg><span>${escapeHtml(a.productName || 'Artikel')} entfernt!</span></div>`;
+                }
+            } else if (a.type === 'update') {
+                log('Cart action update', { lineItemId: a.lineItemId || null, productId: a.productId || null, quantity: a.quantity || 1 });
+                await fetchCart();
+                let lineItemId = a.lineItemId;
+                if (!lineItemId && a.productId) {
+                    const match = state.cart.items.find(i => i.productId === a.productId || i.id === a.productId);
+                    lineItemId = match?.id || null;
+                }
+                const qty = a.quantity || 1;
+                const result = await updateCartQuantity(lineItemId, qty);
+                log('Cart action update result', { success: result.success, error: result.error || null });
+                if (result.success) {
+                    bubbleContent.innerHTML += `<div class="cc-alert"><svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg><span>Menge aktualisiert: ${escapeHtml(a.productName || 'Artikel')} x${qty}</span></div>`;
+                }
+            } else if (a.type === 'clear') {
+                log('Cart action clear', {});
+                await clearCart();
+                bubbleContent.innerHTML += `<div class="cc-alert"><svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg><span>Warenkorb geleert!</span></div>`;
+            }
+        }
+
+        if (addedAny) {
+            bubbleContent.innerHTML += `<div class="cc-actions"><a href="${CONFIG.shopUrl}/checkout/confirm" class="cc-action primary">🛒 Zur Kasse</a></div>`;
+            bindActionButtons(bubbleContent.closest('.cc-message'));
+        }
+
+        scrollToBottom();
+    }
+
+    // =================================================================
+    // FILE ATTACHMENTS (Images)
+    // =================================================================
+    function formatBytes(bytes) {
+        if (!bytes && bytes !== 0) return '';
+        const sizes = ['B', 'KB', 'MB', 'GB'];
+        const i = Math.min(sizes.length - 1, Math.floor(Math.log(bytes) / Math.log(1024)));
+        const val = bytes / Math.pow(1024, i);
+        return `${val.toFixed(i === 0 ? 0 : 1)} ${sizes[i]}`;
+    }
+
+    function fileToDataUrl(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = () => reject(new Error('file_read_failed'));
+            reader.readAsDataURL(file);
+        });
+    }
+
+    function renderFilePreview() {
+        if (!state.pendingFiles?.length) {
+            els.filePreview.innerHTML = '';
+            return;
+        }
+        const f = state.pendingFiles[0];
+        els.filePreview.innerHTML = `
+            <div class="cc-file-preview">
+                <div class="cc-file-icon">
+                    <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14z"/></svg>
+                </div>
+                <div class="cc-file-info">
+                    <div class="cc-file-name">${f.name}</div>
+                    <div class="cc-file-size">${formatBytes(f.size)}</div>
+                </div>
+                <button class="cc-file-remove" id="ccRemoveFile" title="Entfernen">×</button>
+            </div>
+        `;
+        const btn = document.getElementById('ccRemoveFile');
+        if (btn) {
+            btn.addEventListener('click', () => {
+                state.pendingFiles = [];
+                els.filePreview.innerHTML = '';
+                try { els.fileInput.value = ''; } catch (e) {}
+                analytics.track('file_removed');
+            }, { once: true });
+        }
+    }
+
+    async function handleFileSelected(file) {
+        if (!file) return;
+
+        if (file.size > CONFIG.maxFileSize) {
+            addMessage(`Datei ist zu groß. Maximal ${formatBytes(CONFIG.maxFileSize)}.`, false);
+            analytics.track('file_too_large', { size: file.size });
+            return;
+        }
+
+        if (!file.type?.startsWith('image/')) {
+            addMessage('Aktuell werden nur Bilder als Anhang unterstützt.', false);
+            analytics.track('file_unsupported_type', { type: file.type || 'unknown' });
+            return;
+        }
+
+        const base64 = await fileToDataUrl(file);
+        state.pendingFiles = [{ name: file.name, size: file.size, type: file.type, base64 }];
+        renderFilePreview();
+        analytics.track('file_attached', { type: file.type, size: file.size });
+    }
+
+    // =================================================================
+    // VOICE (Web Speech API)
+    // =================================================================
+    let speechRecognition = null;
+
+    function initSpeechRecognition() {
+        if (!CONFIG.featureVoiceToText) return;
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!SpeechRecognition) {
+            log('Speech recognition not supported');
+            if (els.voiceBtn) els.voiceBtn.style.display = 'none';
+            return;
+        }
+
+        speechRecognition = new SpeechRecognition();
+        speechRecognition.lang = getLanguageCode();
+        speechRecognition.continuous = false;
+        speechRecognition.interimResults = true;
+
+        speechRecognition.onresult = (event) => {
+            const transcript = Array.from(event.results).map(r => r[0].transcript).join('');
+            els.input.value = transcript;
+        };
+
+        speechRecognition.onend = () => {
+            state.isRecording = false;
+            if (els.voiceBtn) els.voiceBtn.classList.remove('recording');
+            if (els.voiceIndicator) els.voiceIndicator.classList.remove('active');
+            if (els.input.value.trim()) {
+                els.input.focus();
+                analytics.track('voice_input_complete', {
+                    transcriptLength: els.input.value.length,
+                    transcript: els.input.value
+                });
+            }
+        };
+
+        speechRecognition.onerror = (event) => {
+            log('Speech error:', event.error);
+            state.isRecording = false;
+            if (els.voiceBtn) els.voiceBtn.classList.remove('recording');
+            if (els.voiceIndicator) els.voiceIndicator.classList.remove('active');
+            analytics.track('voice_input_error', { error: event.error });
+        };
+    }
+
+    function toggleRecording() {
+        if (!speechRecognition) {
+            alert('Spracheingabe wird in diesem Browser nicht unterstützt.');
+            return;
+        }
+
+        if (state.isRecording) {
+            speechRecognition.stop();
+        } else {
+            try {
+                speechRecognition.start();
+                state.isRecording = true;
+                if (els.voiceBtn) els.voiceBtn.classList.add('recording');
+                if (els.voiceIndicator) els.voiceIndicator.classList.add('active');
+                analytics.track('voice_input_start');
+            } catch (e) {
+                log('Speech start error:', e);
+            }
+        }
+    }
+
+    // =================================================================
+    // SHOP INFO (Shipping/Payment)
+    // =================================================================
+    function shouldFetchShopInfo(text) {
+        const t = String(text || '').toLowerCase();
+        return /(versand|versandkosten|liefer|lieferung|shipping|delivery|zahlung|zahlungsart|payment|payment method)/i.test(t);
+    }
+
+    async function getShopInfo() {
+        try {
+            const token = await ensureContextToken('getShopInfo');
+            const languageId = getLanguageId();
+            const headers = authHeaders({
+                'Content-Type': 'application/json',
+                ...(token ? { 'sw-context-token': token } : {}),
+                ...(languageId ? { 'sw-language-id': languageId } : {})
+            });
+            const response = await fetch(`${CONFIG.middlewareUrl}/shop/info`, {
+                method: 'POST',
+                credentials: 'include',
+                headers,
+                body: JSON.stringify({
+                    context_token: token,
+                    language_id: languageId
+                })
+            });
+            if (!response.ok) return null;
+            const json = await response.json().catch(() => null);
+            if (!json?.success) return null;
+            return json;
+        } catch (_) {
+            return null;
+        }
+    }
+
+    // =================================================================
+    // LEAD CAPTURE
+    // =================================================================
+    async function submitLead(lead) {
+        try {
+            const response = await fetch(`${CONFIG.middlewareUrl}/leads`, {
+                method: 'POST',
+                credentials: 'include',
+                headers: authHeaders({ 'Content-Type': 'application/json' }),
+                body: JSON.stringify(lead || {})
+            });
+            const json = await response.json().catch(() => null);
+            if (!response.ok || !json?.success) {
+                throw new Error(json?.message || `HTTP ${response.status}`);
+            }
+            analytics.track('lead_created');
+            return { success: true, lead: json.lead };
+        } catch (e) {
+            analytics.track('lead_create_error', { error: e.message });
+            return { success: false, error: e.message };
+        }
+    }
+
+    async function openLeadCapture() {
+        try {
+            const email = prompt('Bitte E-Mail eingeben (optional):', '') || '';
+            const phone = prompt('Bitte Telefonnummer eingeben (optional):', '') || '';
+            const message = prompt('Kurzbeschreibung Ihres Anliegens:', '') || '';
+
+            if (!email.trim() && !phone.trim()) {
+                addMessage('Bitte geben Sie mindestens E-Mail oder Telefonnummer an.', false);
+                return;
+            }
+
+            const payload = {
+                session_id: analytics.sessionId,
+                email: email.trim() || null,
+                phone: phone.trim() || null,
+                message: message.trim() || null,
+                source: 'chatbot',
+                metadata: {
+                    url: window.location.href,
+                    language: getLanguageCode(),
+                    cart: state.cart
+                }
+            };
+
+            const result = await submitLead(payload);
+            if (result.success) {
+                addMessage('Danke! Wir melden uns so schnell wie möglich bei Ihnen.', false);
+            } else {
+                addMessage('Lead konnte nicht gesendet werden. Bitte erneut versuchen.', false);
+            }
+        } catch (_) {}
+    }
+
+    // =================================================================
+    // UI FUNCTIONS
+    // =================================================================
+    function escapeHtml(str) {
+        return String(str || '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    function parseMarkdown(text) {
+        if (!text) return '';
+        return text
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+            .replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener">$1</a>')
+            .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+            .replace(/\*(.+?)\*/g, '<em>$1</em>')
+            .replace(/\n/g, '<br>');
+    }
+
+    function scrollToBottom(smooth = true) {
+        if (smooth) els.messages.scrollTo({ top: els.messages.scrollHeight, behavior: 'smooth' });
+        else els.messages.scrollTop = els.messages.scrollHeight;
+    }
+
+    function renderWelcomeMessage() {
+        const actionsHtml = (Array.isArray(CONFIG.quickActions) ? CONFIG.quickActions : [])
+            .filter(a => a && a.label && a.text)
+            .map(a => `<button class="cc-action" data-msg="${escapeHtml(a.text)}" data-action="${escapeHtml(a.action || '')}">${escapeHtml(a.label)}</button>`)
+            .join('');
+
+        const welcome = (CONFIG.welcomeMessage || '').trim();
+        const welcomeHtml = welcome ? welcome : '<strong>Hallo! 👋</strong><br>Willkommen!';
+
+        els.messages.innerHTML = `
+            <div class="cc-message bot">
+                <div class="cc-bubble">
+                    ${welcomeHtml}
+                    <div class="cc-actions">${actionsHtml}</div>
+                </div>
+            </div>`;
+        bindActionButtons();
+    }
+
+    function renderMessage(msg, options = {}) {
+        const msgEl = document.createElement('div');
+        msgEl.className = `cc-message ${msg.isUser ? 'user' : 'bot'}${options.restored ? ' restored' : ''}`;
+        let html = `<div class="cc-bubble${options.streaming ? ' streaming' : ''}">${parseMarkdown(msg.text)}`;
+        if (msg.actions?.length) {
+            html += '<div class="cc-actions">';
+            msg.actions.forEach(a => {
+                html += a.url
+                    ? `<a href="${a.url}" class="cc-action ${a.primary?'primary':''}" target="_blank">${a.label}</a>`
+                    : `<button class="cc-action ${a.primary?'primary':''}" data-msg="${a.message}" data-action="${a.action || ''}">${a.label}</button>`;
+            });
+            html += '</div>';
+        }
+        if (msg.alert) html += `<div class="cc-alert"><svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg><span>${msg.alert}</span></div>`;
+        html += '</div>';
+        msgEl.innerHTML = html;
+        els.messages.appendChild(msgEl);
+        bindActionButtons(msgEl);
+        return msgEl.querySelector('.cc-bubble');
+    }
+
+    function restoreHistory() {
+        const history = loadHistory();
+        if (history.length === 0) { renderWelcomeMessage(); return; }
+        history.forEach(msg => renderMessage(msg, { restored: true }));
+        scrollToBottom(false);
+    }
+
+    function addMessage(text, isUser, options = {}) {
+        const msg = { text, isUser, timestamp: Date.now(), ...options };
+        if (!options.skipSave) {
+            state.messages.push({ text, isUser, timestamp: msg.timestamp });
+            saveHistory();
+        }
+        const bubble = renderMessage(msg, options);
+        scrollToBottom();
+        return bubble;
+    }
+
+    function bindActionButtons(container = document) {
+        container.querySelectorAll('.cc-action[data-msg]').forEach(btn => {
+            if (btn.dataset.bound) return;
+            btn.dataset.bound = 'true';
+            btn.addEventListener('click', () => {
+                const action = btn.dataset.action;
+                if (action) {
+                    analytics.track('quick_action_click', { action, message: btn.dataset.msg });
+                }
+                sendMessage(btn.dataset.msg);
+            });
+        });
+    }
+
+    function showThinking() {
+        const t = document.createElement('div');
+        t.className = 'cc-message bot';
+        t.id = 'ccThinking';
+        t.innerHTML = `
+            <div class="cc-thinking">
+                <div class="cc-thinking-icon"></div>
+                <span class="cc-thinking-text">Denke nach<span class="cc-thinking-dots"><span></span><span></span><span></span></span></span>
+            </div>`;
+        els.messages.appendChild(t);
+        scrollToBottom();
+    }
+
+    function hideThinking() {
+        const t = document.getElementById('ccThinking');
+        if (t) t.remove();
+    }
+
+    // =================================================================
+    // SEND MESSAGE
+    // =================================================================
+    async function sendMessage(text) {
+        text = (text || '').trim();
+
+        const attachedImage = state.pendingFiles?.[0]?.base64 || null;
+        if ((!text && !attachedImage) || state.isLoading) return;
+
+        state.isLoading = true;
+        state.messageCount++;
+        if (els.send) els.send.disabled = true;
+        if (els.input) els.input.value = '';
+
+        const requestStartTime = Date.now();
+
+        analytics.track('message_sent', {
+            question: text,
+            length: text.length,
+            messageNumber: state.messageCount
+        });
+
+        state.pendingFiles = [];
+        if (els.filePreview) els.filePreview.innerHTML = '';
+        try { if (els.fileInput) els.fileInput.value = ''; } catch (e) {}
+
+        addMessage(text || '📷 Bild gesendet', true);
+        showThinking();
+
+        let bubble = null;
+        let bubbleContent = null;
+
+        try {
+            await refreshContextToken('sendMessage');
+            await fetchCart();
+            const contextToken = await ensureContextToken('sendMessage');
+            const languageId = getLanguageId();
+
+            if (CONFIG.debug) {
+                log('sendMessage payload', {
+                    hasContextToken: !!contextToken,
+                    contextTokenSource: state.contextTokenSource || null,
+                    cartItemCount: state.cart?.itemCount ?? 0,
+                    middlewareUrl: CONFIG.middlewareUrl
+                });
+            }
+
+            const shopInfo = shouldFetchShopInfo(text) ? await getShopInfo() : null;
+            const response = await fetch(`${CONFIG.middlewareUrl}/chat/stream`, {
+                method: 'POST',
+                credentials: 'include',
+                headers: authHeaders({ 'Content-Type': 'application/json' }),
+                body: JSON.stringify({
+                    message: text,
+                    conversation_id: state.conversationId,
+                    user: state.userId,
+                    cart: state.cart,
+                    context_token: contextToken,
+                    image: attachedImage,
+                    language: getLanguageCode(),
+                    language_id: languageId,
+                    extra_instructions: CONFIG.extraInstructions,
+                    shop_info: shopInfo,
+                    shop_id: CONFIG.shopId
+                })
+            });
+
+            if (!response.ok) {
+                hideThinking();
+                const rid = response.headers.get('x-request-id') || '';
+                let errText = '';
+                try { errText = await response.text(); } catch (e) {}
+                throw new Error(`API error: ${response.status}${rid ? ` (RequestId: ${rid})` : ''}${errText ? ` - ${errText}` : ''}`);
+            }
+
+            let fullText = '';
+            let cartAction = null;
+            let cartActions = null;
+            let productSuggestions = null;
+            let streamError = null;
+            let firstChunkTime = null;
+            let thinkingHidden = false;
+
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            let buffer = '';
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                buffer += decoder.decode(value, { stream: true });
+                const lines = buffer.split('\n');
+                buffer = lines.pop() || '';
+
+                for (const line of lines) {
+                    if (!line.startsWith('data: ')) continue;
+                    const jsonStr = line.substring(6).trim();
+                    if (!jsonStr || jsonStr === '[DONE]') continue;
+                    try {
+                        const data = JSON.parse(jsonStr);
+                        if (data.text) {
+                            if (!thinkingHidden) {
+                                hideThinking();
+                                thinkingHidden = true;
+                                firstChunkTime = Date.now();
+
+                                bubble = document.createElement('div');
+                                bubble.className = 'cc-message bot';
+                                bubble.innerHTML = '<div class="cc-bubble streaming"></div>';
+                                els.messages.appendChild(bubble);
+                                bubbleContent = bubble.querySelector('.cc-bubble');
+
+                                analytics.track('first_response_chunk', {
+                                    timeToFirstChunk: firstChunkTime - requestStartTime
+                                });
+                            }
+
+                            fullText += data.text;
+                            if (bubbleContent) {
+                                bubbleContent.innerHTML = parseMarkdown(fullText);
+                            }
+                            scrollToBottom();
+                        }
+                        if (data.conversation_id) {
+                            state.conversationId = data.conversation_id;
+                            localStorage.setItem(CONFIG.storagePrefix + 'conv', state.conversationId);
+                        }
+                        if (data.cart_action) cartAction = data.cart_action;
+                        if (data.cart_actions) cartActions = data.cart_actions;
+                        if (data.product_suggestions) productSuggestions = data.product_suggestions;
+                        if (data.error) streamError = data.error;
+                    } catch (e) {}
+                }
+            }
+
+            if (!thinkingHidden) {
+                hideThinking();
+            }
+
+            if (streamError) {
+                if (!bubbleContent) {
+                    bubble = document.createElement('div');
+                    bubble.className = 'cc-message bot';
+                    bubble.innerHTML = '<div class="cc-bubble"></div>';
+                    els.messages.appendChild(bubble);
+                    bubbleContent = bubble.querySelector('.cc-bubble');
+                }
+                bubbleContent.innerHTML += `<div class="cc-alert" style="background:#fee2e2;border-color:#fecaca"><svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg><span>${streamError}</span></div>`;
+                scrollToBottom();
+            }
+
+            const responseTime = Date.now() - requestStartTime;
+
+            if (bubbleContent) {
+                bubbleContent.classList.remove('streaming');
+            }
+
+            if (fullText) {
+                state.messages.push({ text: fullText, isUser: false, timestamp: Date.now() });
+                saveHistory();
+            }
+
+            analytics.track('message_received', {
+                responseTime,
+                responseLength: fullText.length,
+                timeToFirstChunk: firstChunkTime ? firstChunkTime - requestStartTime : null
+            });
+
+            if (productSuggestions && bubbleContent) {
+                renderProductSuggestions(productSuggestions, bubbleContent);
+            }
+
+            const actionsToExecute = (Array.isArray(cartActions) && cartActions.length)
+                ? cartActions
+                : (cartAction ? [cartAction] : []);
+
+            if (CONFIG.debug || actionsToExecute.length) {
+                log('Cart actions from stream', {
+                    count: actionsToExecute.length,
+                    types: actionsToExecute.map(a => a?.type),
+                    productIds: actionsToExecute.map(a => (a?.productId || '').slice(0, 8)),
+                    hasCartAction: !!cartAction,
+                    hasCartActions: !!cartActions
+                });
+            }
+            if (!actionsToExecute.length && (CONFIG.debug || /warenkorb|cart|hinzufügen|add/i.test(text))) {
+                log('No cart_actions in stream (bot may have said "added" but no action was sent)', { question: text.slice(0, 80) });
+            }
+
+            if (actionsToExecute.length) {
+                if (!bubbleContent) {
+                    bubble = document.createElement('div');
+                    bubble.className = 'cc-message bot';
+                    bubble.innerHTML = '<div class="cc-bubble"></div>';
+                    els.messages.appendChild(bubble);
+                    bubbleContent = bubble.querySelector('.cc-bubble');
+                }
+                log('Execute cart actions', actionsToExecute.length, actionsToExecute);
+                await executeCartActions(actionsToExecute, bubbleContent);
+            }
+
+        } catch (error) {
+            hideThinking();
+            log('Chat error:', error);
+            const userMsg = CONFIG.debug
+                ? `Entschuldigung, es ist ein Fehler aufgetreten.\n\nDebug: ${error.message}`
+                : 'Entschuldigung, es ist ein Fehler aufgetreten. Bitte versuchen Sie es erneut.';
+            addMessage(userMsg, false);
+            analytics.track('message_error', { error: error.message, question: text });
+        } finally {
+            state.isLoading = false;
+            if (els.send) els.send.disabled = false;
+            if (els.input) els.input.focus();
+        }
+    }
+
+    // =================================================================
+    // EVENT LISTENERS
+    // =================================================================
+    els.toggle.addEventListener('click', async () => {
+        state.isOpen = !state.isOpen;
+        els.window.classList.toggle('open', state.isOpen);
+        els.toggle.classList.toggle('active', state.isOpen);
+        if (state.isOpen) {
+            els.input.focus();
+            await fetchCart();
+            setTimeout(() => scrollToBottom(false), 100);
+            analytics.track('chatbot_opened');
+        } else {
+            analytics.track('chatbot_closed');
+        }
+    });
+
+    els.close.addEventListener('click', () => {
+        state.isOpen = false;
+        els.window.classList.remove('open');
+        els.toggle.classList.remove('active');
+        analytics.track('chatbot_closed');
+    });
+
+    els.send.addEventListener('click', () => sendMessage(els.input.value));
+    els.input.addEventListener('keypress', e => { if (e.key === 'Enter') { e.preventDefault(); sendMessage(els.input.value); } });
+    els.clear.addEventListener('click', () => { if (confirm('Chat-Verlauf löschen?')) clearHistory(); });
+
+    if (CONFIG.featureFileUpload && els.fileBtn) {
+        els.fileBtn.addEventListener('click', () => { try { els.fileInput.click(); } catch (e) {} });
+        els.fileInput.addEventListener('change', async (e) => {
+            const file = e.target.files && e.target.files[0] ? e.target.files[0] : null;
+            try {
+                await handleFileSelected(file);
+            } catch (err) {
+                log('File attach error:', err.message);
+                addMessage('Datei konnte nicht hinzugefügt werden.', false);
+            }
+        });
+    }
+
+    if (CONFIG.featureVoiceToText && els.voiceBtn) {
+        els.voiceBtn.addEventListener('click', toggleRecording);
+    }
+
+    // =================================================================
+    // INIT
+    // =================================================================
+    log('Chatbot initialized');
+    log('Config:', CONFIG);
+
+    initSpeechRecognition();
+    restoreHistory();
+    ensureContextToken('init')
+        .then(() => refreshContextToken('init'))
+        .finally(() => fetchCart());
+
+    analytics.track('chatbot_loaded', {
+        url: window.location.pathname,
+        referrer: document.referrer ? new URL(document.referrer).hostname : null
+    });
+
+    // =================================================================
+    // GLOBAL API (optional)
+    // =================================================================
+    window.CCChatbot = {
+        open: () => { state.isOpen = true; els.window.classList.add('open'); els.toggle.classList.add('active'); els.input.focus(); setTimeout(() => scrollToBottom(false), 100); analytics.track('chatbot_opened'); },
+        close: () => { state.isOpen = false; els.window.classList.remove('open'); els.toggle.classList.remove('active'); analytics.track('chatbot_closed'); },
+        send: sendMessage,
+        getCart: () => state.cart,
+        refreshCart: fetchCart,
+        addToCart,
+        clearCart,
+        getHistory: () => [...state.messages],
+        clearHistory,
+        getContextToken,
+        getAnalytics: () => analytics.getSummary(),
+        flushAnalytics: () => analytics.flush()
+    };
+})();
+</script>

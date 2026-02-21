@@ -1,0 +1,11 @@
+{
+  "main.js": {
+    "file": "assets/c-c-chatbot-Bd2Peine.js",
+    "name": "c-c-chatbot",
+    "src": "main.js",
+    "isEntry": true,
+    "css": [
+      "assets/c-c-chatbot-BzRWWEzF.css"
+    ]
+  }
+}

@@ -148,7 +148,7 @@ async function readDifyStreamingAnswer(resp) {
                     try {
                         obj = JSON.parse(part);
                         break;
-                    } catch (e) {}
+                    } catch (e) { }
                 }
             }
 
@@ -172,55 +172,65 @@ async function readDifyStreamingAnswer(resp) {
 /**
  * Format cart for Dify context
  */
-function formatCart(cart) {
+function formatCart(cart, lang = 'de') {
+    const en = String(lang || '').toLowerCase().startsWith('en');
     if (!cart?.items?.length) {
-        return '[WARENKORB: leer]\n\n';
+        return en ? '[CART: empty]\n\n' : '[WARENKORB: leer]\n\n';
     }
-    
-    let text = `[WARENKORB - ${cart.itemCount} Artikel, Gesamt: ${cart.total?.toFixed(2) || 0}€]\n`;
+
+    const header = en
+        ? `[CART - ${cart.itemCount} items, Total: ${cart.total?.toFixed(2) || 0}€]`
+        : `[WARENKORB - ${cart.itemCount} Artikel, Gesamt: ${cart.total?.toFixed(2) || 0}€]`;
+    let text = header + '\n';
     cart.items.forEach((item, i) => {
         const price = item.totalPrice?.toFixed(2) || item.price?.toFixed(2) || '?';
         text += `  ${i + 1}. "${item.name}" x${item.quantity} = ${price}€\n`;
     });
-    text += '[ENDE WARENKORB]\n\n';
+    text += en ? '[END CART]\n\n' : '[ENDE WARENKORB]\n\n';
     return text;
 }
 
 /**
  * Format orders for Dify context
  */
-function formatOrders(orders) {
+function formatOrders(orders, lang = 'de') {
     if (!orders?.length) return '';
-    
-    let text = '[BESTELLHISTORIE des Kunden]\n';
+    const en = String(lang || '').toLowerCase().startsWith('en');
+
+    let text = en ? '[ORDER HISTORY]\n' : '[BESTELLHISTORIE des Kunden]\n';
     orders.slice(0, 3).forEach((order, i) => {
-        text += `  ${i + 1}. Bestellung #${order.orderNumber} vom ${order.dateFormatted}\n`;
-        text += `     Status: ${order.status} | Gesamt: ${order.totalFormatted}\n`;
+        text += en
+            ? `  ${i + 1}. Order #${order.orderNumber} from ${order.dateFormatted}\n`
+            : `  ${i + 1}. Bestellung #${order.orderNumber} vom ${order.dateFormatted}\n`;
+        text += en
+            ? `     Status: ${order.status} | Total: ${order.totalFormatted}\n`
+            : `     Status: ${order.status} | Gesamt: ${order.totalFormatted}\n`;
         const deliveries = Array.isArray(order.deliveries) ? order.deliveries : [];
         const tracking = deliveries.flatMap(d => Array.isArray(d.trackingCodes) ? d.trackingCodes : []);
         if (tracking.length) {
             text += `     Tracking: ${tracking.join(', ')}\n`;
         }
-        text += '     Artikel:\n';
+        text += en ? '     Items:\n' : '     Artikel:\n';
         order.items.slice(0, 5).forEach(item => {
             text += `       - ${item.name} x${item.quantity} à ${item.priceFormatted}\n`;
         });
     });
-    text += '[ENDE BESTELLHISTORIE]\n\n';
+    text += en ? '[END ORDER HISTORY]\n\n' : '[ENDE BESTELLHISTORIE]\n\n';
     return text;
 }
 
 /**
  * Format shop info (shipping + payment) for Dify context
  */
-function formatShopInfo(shopInfo) {
+function formatShopInfo(shopInfo, lang = 'de') {
     const shipping = shopInfo?.shippingMethods || [];
     const payment = shopInfo?.paymentMethods || [];
     if (!shipping.length && !payment.length) return '';
+    const en = String(lang || '').toLowerCase().startsWith('en');
 
     let text = '[SHOP INFO]\n';
     if (shipping.length) {
-        text += 'Versand:\n';
+        text += en ? 'Shipping:\n' : 'Versand:\n';
         shipping.slice(0, 10).forEach((m, i) => {
             const price = m.priceFormatted || (Number.isFinite(m.price) ? `${m.price}€` : '');
             const line = [m.name, price].filter(Boolean).join(' - ');
@@ -228,25 +238,36 @@ function formatShopInfo(shopInfo) {
         });
     }
     if (payment.length) {
-        text += 'Zahlung:\n';
+        text += en ? 'Payment:\n' : 'Zahlung:\n';
         payment.slice(0, 10).forEach((m, i) => {
             text += `  ${i + 1}. ${m.name}\n`;
         });
     }
-    text += '[ENDE SHOP INFO]\n\n';
+    text += '[END SHOP INFO]\n\n';
     return text;
 }
 /**
- * Format customer info for Dify context
+ * Format customer info for Dify context.
+ * Important: Adding to cart does NOT require login; guests can add items.
+ * Only order history and reordering require the customer to be logged in.
  */
-function formatCustomerInfo(customer, isLoggedIn) {
+function formatCustomerInfo(customer, isLoggedIn, lang = 'de') {
+    const en = String(lang || '').toLowerCase().startsWith('en');
     if (!isLoggedIn) {
-        return '[KUNDE: Nicht eingeloggt - Bestellhistorie nicht verfügbar]\n\n';
+        const guestCart = en
+            ? '[NOTE: Adding to cart does NOT require login. Guests can add items to the cart. Only order history and reordering require login.]\n\n'
+            : '[HINWEIS: Warenkorb funktioniert auch ohne Anmeldung. Gäste können Artikel in den Warenkorb legen. Nur Bestellhistorie und Nachbestellen erfordern Login.]\n\n';
+        const customerLine = en
+            ? '[CUSTOMER: Not logged in - order history unavailable]\n\n'
+            : '[KUNDE: Nicht eingeloggt - Bestellhistorie nicht verfügbar]\n\n';
+        return guestCart + customerLine;
     }
     if (customer) {
-        return `[KUNDE: ${customer.firstName} ${customer.lastName} (${customer.email}) - eingeloggt]\n\n`;
+        const label = en ? 'CUSTOMER' : 'KUNDE';
+        const status = en ? 'logged in' : 'eingeloggt';
+        return `[${label}: ${customer.firstName} ${customer.lastName} (${customer.email}) - ${status}]\n\n`;
     }
-    return '[KUNDE: Eingeloggt]\n\n';
+    return en ? '[CUSTOMER: Logged in]\n\n' : '[KUNDE: Eingeloggt]\n\n';
 }
 
 /**
@@ -255,7 +276,7 @@ function formatCustomerInfo(customer, isLoggedIn) {
 async function streamChat(message, userId, conversationId, context = {}, tenant = null) {
     const { cart, orders, customer, isLoggedIn, image, askedAboutOrders, difyFiles, languageHint, shopInfo, extraInstructions } = context;
     const difyConfig = getDifyConfig(tenant);
-    
+
     // Build enhanced message with context
     let enhancedMessage = '';
     if (difyConfig.instructions) {
@@ -263,32 +284,35 @@ async function streamChat(message, userId, conversationId, context = {}, tenant 
     }
     if (extraInstructions) {
         enhancedMessage += `[SHOP INSTRUCTIONS]\n${String(extraInstructions).trim()}\n\n`;
-        console.log('yes extraInstructions', extraInstructions);
-    }else{
-        console.log('no extraInstructions', extraInstructions);
+        log('DIFY', 'Extra instructions present');
     }
     if (languageHint) {
         enhancedMessage += `[LANGUAGE]\n${String(languageHint).trim()}\n\n`;
-        console.log('yes languageHint', languageHint);
-    }else{
-        console.log('no languageHint', languageHint);
+        log('DIFY', `Language hint: ${languageHint}`);
     }
-    enhancedMessage += formatCustomerInfo(customer, isLoggedIn);
-    enhancedMessage += formatCart(cart);
-    
+
+    // Derive language code for bilingual formatting
+    const lang = String(languageHint || '').toLowerCase().startsWith('en') ? 'en' : 'de';
+
+    enhancedMessage += formatCustomerInfo(customer, isLoggedIn, lang);
+    enhancedMessage += formatCart(cart, lang);
+
     if (orders?.length) {
-        enhancedMessage += formatOrders(orders);
+        enhancedMessage += formatOrders(orders, lang);
     } else if (askedAboutOrders && isLoggedIn === false) {
         // Only add this hint if the customer actually asked about orders.
-        enhancedMessage += '[HINWEIS: Kunde ist nicht eingeloggt, Bestellhistorie kann nicht abgerufen werden]\n\n';
+        enhancedMessage += lang === 'en'
+            ? '[NOTE: Customer is not logged in, order history cannot be retrieved]\n\n'
+            : '[HINWEIS: Kunde ist nicht eingeloggt, Bestellhistorie kann nicht abgerufen werden]\n\n';
     }
 
     if (shopInfo) {
-        enhancedMessage += formatShopInfo(shopInfo);
+        enhancedMessage += formatShopInfo(shopInfo, lang);
     }
-    
-    enhancedMessage += 'Kundenanfrage: ' + message;
-    
+
+    const queryLabel = lang === 'en' ? 'Customer inquiry' : 'Kundenanfrage';
+    enhancedMessage += queryLabel + ': ' + message;
+
     // Request body
     const body = {
         inputs: {},
@@ -303,11 +327,11 @@ async function streamChat(message, userId, conversationId, context = {}, tenant 
     if (difyConfig.agentId && !body.inputs.agent_id) {
         body.inputs.agent_id = difyConfig.agentId;
     }
-    
+
     if (conversationId) {
         body.conversation_id = conversationId;
     }
-    
+
     // Handle image:
     // - Prefer pre-built files (avoids double upload when the middleware
     //   already uploaded the image for the vision pipeline)
@@ -318,9 +342,9 @@ async function streamChat(message, userId, conversationId, context = {}, tenant 
         const files = await buildDifyFiles(image, body.user, difyConfig);
         if (files?.length) body.files = files;
     }
-    
+
     log('DIFY', `Request: user=${userId}, cart=${cart?.itemCount || 0}, orders=${orders?.length || 0}, loggedIn=${isLoggedIn}`);
-    
+
     const response = await fetchWithTimeout(`${difyConfig.url}/v1/chat-messages`, {
         method: 'POST',
         headers: {
@@ -329,13 +353,13 @@ async function streamChat(message, userId, conversationId, context = {}, tenant 
         },
         body: JSON.stringify(body)
     }, 120000);
-    
+
     if (!response.ok) {
         const errorText = await response.text();
         log('DIFY', `Error ${response.status}:`, errorText);
         throw new Error(`Dify API error: ${response.status}`);
     }
-    
+
     return response;
 }
 
@@ -403,7 +427,7 @@ async function extractProductQueryFromImage(image, userId, userMessage = '', ten
             // Try to extract JSON from a text blob
             const m = answer.match(/\{[\s\S]*\}/);
             if (m) {
-                try { parsed = JSON.parse(m[0]); } catch (_) {}
+                try { parsed = JSON.parse(m[0]); } catch (_) { }
             }
         }
 

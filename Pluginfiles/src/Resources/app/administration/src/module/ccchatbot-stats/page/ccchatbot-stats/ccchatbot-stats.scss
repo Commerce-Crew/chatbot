@@ -1,0 +1,49 @@
+.ccchatbot-stats {
+    .ccchatbot-stats__grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 16px;
+        margin-bottom: 8px;
+    }
+
+    .ccchatbot-stats__card {
+        border: 1px solid #d1d9e0;
+        border-radius: 6px;
+        padding: 12px;
+        background: #fff;
+    }
+
+    .ccchatbot-stats__card .label {
+        font-size: 12px;
+        color: #6a6d7d;
+    }
+
+    .ccchatbot-stats__card .value {
+        font-size: 18px;
+        font-weight: 600;
+        color: #0b1742;
+        margin-top: 4px;
+    }
+
+    .ccchatbot-stats__table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .ccchatbot-stats__table th,
+    .ccchatbot-stats__table td {
+        border-bottom: 1px solid #e3e7eb;
+        padding: 8px 6px;
+        text-align: left;
+    }
+
+    .ccchatbot-stats__muted {
+        color: #6a6d7d;
+        font-size: 12px;
+    }
+
+    .ccchatbot-stats__error {
+        color: #d72b3f;
+        margin-bottom: 8px;
+    }
+}

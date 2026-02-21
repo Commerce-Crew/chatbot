@@ -1,0 +1,165 @@
+<?xml version="1.0" ?>
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/shopware/platform/trunk/src/Core/System/SystemConfig/Schema/config.xsd">
+
+  <card>
+    <title>CCChatbot (CommerceCrew)</title>
+
+    <input-field type="bool">
+      <name>enabled</name>
+      <label>Enable chatbot</label>
+      <defaultValue>true</defaultValue>
+    </input-field>
+
+    <input-field>
+      <name>middlewareUrl</name>
+      <label>Middleware URL</label>
+      <helpText>Base URL for your middleware (e.g. https://cbshop.commerce-crew.com/api or http://localhost:3330/api/analytics)</helpText>
+      <defaultValue>https://cbshop.commerce-crew.com/api</defaultValue>
+    </input-field>
+
+    <input-field>
+      <name>middlewareApiKey</name>
+      <label>Middleware API Key</label>
+      <helpText>API key provided by CommerceCrew (middleware authentication)</helpText>
+      <defaultValue></defaultValue>
+    </input-field>
+
+    <input-field>
+      <name>assistantName</name>
+      <label>Assistant name</label>
+      <defaultValue>DentalKiosk Assistent</defaultValue>
+    </input-field>
+
+    <input-field type="colorpicker">
+      <name>primaryColor</name>
+      <label>Primary color</label>
+      <defaultValue>#0B1742</defaultValue>
+    </input-field>
+
+    <input-field type="colorpicker">
+      <name>primaryColorLight</name>
+      <label>Primary (light) color</label>
+      <defaultValue>#1a2a5e</defaultValue>
+    </input-field>
+
+    <input-field type="colorpicker">
+      <name>secondaryColor</name>
+      <label>Secondary color</label>
+      <defaultValue>#ffffff</defaultValue>
+    </input-field>
+
+    <input-field type="text-editor">
+      <name>welcomeMessage</name>
+      <label>Welcome message (shown on first open)</label>
+      <defaultValue><![CDATA[
+<strong>Hallo! 👋</strong><br>
+Willkommen bei DentalKiosk. Ich kann Ihnen bei Produktsuche, Bestellungen und mehr helfen.
+<br><br>
+💡 <strong>Tipp:</strong> Nutzen Sie 🎤 für Spracheingabe!
+]]></defaultValue>
+    </input-field>
+
+    <input-field type="text-editor">
+      <name>extraInstructions</name>
+      <label>Extra instructions (sent to the AI)</label>
+      <helpText>Add shop-specific guidance, tone, or policies for the assistant.</helpText>
+      <defaultValue></defaultValue>
+    </input-field>
+
+    <input-field>
+      <name>quick1Label</name>
+      <label>Quick action 1 label</label>
+      <defaultValue>🧤 Handschuhe</defaultValue>
+    </input-field>
+    <input-field>
+      <name>quick1Text</name>
+      <label>Quick action 1 message to send</label>
+      <defaultValue>Ich suche Handschuhe</defaultValue>
+    </input-field>
+
+    <input-field>
+      <name>quick2Label</name>
+      <label>Quick action 2 label</label>
+      <defaultValue>🛒 Warenkorb</defaultValue>
+    </input-field>
+    <input-field>
+      <name>quick2Text</name>
+      <label>Quick action 2 message to send</label>
+      <defaultValue>Was ist in meinem Warenkorb?</defaultValue>
+    </input-field>
+
+    <input-field>
+      <name>quick3Label</name>
+      <label>Quick action 3 label</label>
+      <defaultValue>📦 Letzte Bestellung</defaultValue>
+    </input-field>
+    <input-field>
+      <name>quick3Text</name>
+      <label>Quick action 3 message to send</label>
+      <defaultValue>Was habe ich zuletzt bestellt?</defaultValue>
+    </input-field>
+
+    <input-field>
+      <name>quick4Label</name>
+      <label>Quick action 4 label</label>
+      <defaultValue>🔄 Nachbestellen</defaultValue>
+    </input-field>
+    <input-field>
+      <name>quick4Text</name>
+      <label>Quick action 4 message to send</label>
+      <defaultValue>Ich würde gerne meine letzte Bestellung nochmal bestellen.</defaultValue>
+    </input-field>
+
+    <input-field type="bool">
+      <name>featureFileUpload</name>
+      <label>Enable file upload (images)</label>
+      <defaultValue>true</defaultValue>
+    </input-field>
+
+    <input-field type="bool">
+      <name>featureVoiceToText</name>
+      <label>Enable voice-to-text</label>
+      <defaultValue>true</defaultValue>
+    </input-field>
+
+    <input-field>
+      <name>bottomBranding</name>
+      <label>Bottom branding text</label>
+      <defaultValue>DentalKiosk AI</defaultValue>
+    </input-field>
+
+    <input-field type="bool">
+      <name>analyticsEnabled</name>
+      <label>Enable anonymous analytics</label>
+      <defaultValue>true</defaultValue>
+    </input-field>
+
+    <input-field type="bool">
+      <name>statsEnabled</name>
+      <label>Show stats panel (tokens/questions)</label>
+      <helpText>Only enable for shop owners (not customers).</helpText>
+      <defaultValue>false</defaultValue>
+    </input-field>
+
+    <input-field type="bool">
+      <name>leadCaptureEnabled</name>
+      <label>Enable lead capture button</label>
+      <defaultValue>false</defaultValue>
+    </input-field>
+
+    <input-field>
+      <name>leadCaptureLabel</name>
+      <label>Lead capture button label</label>
+      <defaultValue>💬 Kontakt aufnehmen</defaultValue>
+    </input-field>
+
+    <input-field type="bool">
+      <name>debug</name>
+      <label>Enable debug logging (console)</label>
+      <defaultValue>false</defaultValue>
+    </input-field>
+
+  </card>
+
+</config>

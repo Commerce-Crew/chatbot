@@ -79,7 +79,7 @@ async function refreshContextToken(contextToken, cookieHeader, tenant = null) {
                 body = await resp.json().catch(() => null);
                 bodyToken = body?.token || body?.contextToken || body?.context_token || null;
             } else {
-                try { body = await resp.text(); } catch (_) {}
+                try { body = await resp.text(); } catch (_) { }
             }
 
             return {
@@ -443,7 +443,7 @@ async function verifyCustomerSession(contextToken, tenant = null) {
 
         const status = response.status;
         let body = '';
-        try { body = await response.text(); } catch (_) {}
+        try { body = await response.text(); } catch (_) { }
         log('SHOPWARE', `Verify session failed (${status})`, body ? body.substring(0, 500) : '');
         return { valid: false, loggedIn: false };
     } catch (error) {
@@ -590,6 +590,10 @@ async function resolveProductIdentifier(identifier, limit = 5, tenant = null) {
 
         add(raw);
 
+        // Strip ® ™ © and similar for search (e.g. "Medicom® SafeSeal®" -> "Medicom SafeSeal")
+        const noSymbols = raw.replace(/[\u00ae\u2122\u00a9\u00ae\u2120]/g, ' ').replace(/\s+/g, ' ').trim();
+        add(noSymbols);
+
         const noParen = raw.replace(/\s*\([^)]*\)\s*/g, ' ').replace(/\s+/g, ' ').trim();
         add(noParen);
 
@@ -603,6 +607,18 @@ async function resolveProductIdentifier(identifier, limit = 5, tenant = null) {
         if (tokens.length > 6) {
             add(tokens.slice(0, 6).join(' '));
         }
+        // First 4–5 words often match product line (e.g. "Medicom SafeSeal Quattro Rolle")
+        if (tokens.length > 4) {
+            add(tokens.slice(0, 4).join(' '));
+            add(tokens.slice(0, 5).join(' '));
+        }
+
+        // Same with symbol-stripped tokens (® ™ etc. removed) for better search match
+        const tokensNoSym = noSymbols.split(/\s+/).filter(Boolean);
+        if (tokensNoSym.length > 4) {
+            add(tokensNoSym.slice(0, 4).join(' '));
+            add(tokensNoSym.slice(0, 5).join(' '));
+        }
 
         return variants;
     };
@@ -611,7 +627,7 @@ async function resolveProductIdentifier(identifier, limit = 5, tenant = null) {
     let products = [];
     for (let i = 0; i < variants.length; i += 1) {
         const q = variants[i];
-        const timeoutMs = i === 0 ? 12000 : 8000;
+        const timeoutMs = i === 0 ? 25000 : 15000;
         const reason = i === 0 ? 'resolve_identifier' : 'resolve_identifier_fallback';
         products = await searchProducts(q, limit, tenant, { timeoutMs, reason });
         if (products.length) {
@@ -622,7 +638,7 @@ async function resolveProductIdentifier(identifier, limit = 5, tenant = null) {
         }
     }
     if (!products.length) {
-        log('SHOPWARE', 'Resolve identifier failed', { identifier: id, attempts: variants.length });
+        log('SHOPWARE', 'Resolve identifier failed', { identifier: id.slice(0, 60), variants: variants.slice(0, 5), attempts: variants.length });
         return { success: false, error: 'not_found', product: null };
     }
 
@@ -636,10 +652,10 @@ async function resolveProductIdentifier(identifier, limit = 5, tenant = null) {
     return { success: true, resolved: true, product: best, candidates: products };
 }
 
-function formatPrice(price) {
-    return new Intl.NumberFormat('de-DE', {
+function formatPrice(price, locale = 'de-DE', currency = 'EUR') {
+    return new Intl.NumberFormat(locale, {
         style: 'currency',
-        currency: 'EUR'
+        currency
     }).format(price || 0);
 }
 

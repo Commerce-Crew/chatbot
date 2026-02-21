@@ -16,7 +16,7 @@ const { resolveContextToken } = require('../utils/contextToken');
 function isBuyIntent(text) {
     const t = String(text || '').toLowerCase();
     // Broad intent detection (DE + EN) for adding to cart / purchase
-    return /(kauf|kaufen|bestell|bestellen|nachbestell|in den warenkorb|warenkorb|zum warenkorb|add to cart|buy this|purchase|order this|ich (möchte|will|würde gern).*(kaufen|bestellen|nehmen))/i.test(t);
+    return /(kauf|kaufen|bestell|bestellen|nachbestell|in den warenkorb|warenkorb|zum warenkorb|add to cart|buy this|purchase|order this|put\s+.+\s+in\s+(?:den\s+)?(?:warenkorb|basket)|in\s+basket|in\s+den\s+warenkorb|ich (möchte|will|würde gern).*(kaufen|bestellen|nehmen))/i.test(t);
 }
 
 function isRemoveIntent(text) {
@@ -154,13 +154,16 @@ function shouldRunImagePipeline(message) {
 
     return false;
 }
-// Heuristic: is this message a textual product search (e.g. "ich suche latex handschuhe", short search terms)
+// Heuristic: is this message a textual product search (e.g. "ich suche latex handschuhe", "I'm looking for gloves")
 function isProductSearch(text) {
     const t = String(text || '').toLowerCase().trim();
     if (!t) return false;
 
-    // Common search verbs/phrases or product nouns
-    if (/\b(suche|ich suche|finde|gibt es|haben sie|wo (gibt es|finde)|produkten?|artikel|handschuh|handschuhe|handschuhen)\b/i.test(t)) return true;
+    // German search verbs/phrases
+    if (/\b(suche|ich suche|finde|gibt es|haben sie|wo (gibt es|finde)|produkten?|artikel)\b/i.test(t)) return true;
+
+    // English search verbs/phrases
+    if (/\b(search|find|looking for|do you have|show me|i need|i want|where can i find|products?)\b/i.test(t)) return true;
 
     // Short queries (1-3 words) are likely product searches
     const words = t.split(/\s+/).filter(Boolean);
@@ -347,6 +350,16 @@ function cleanProductNameCandidate(value) {
     return name;
 }
 
+/** Extract first product ID (32 hex) from assistant text, e.g. from /detail/xxx or markdown links. */
+function extractProductIdFromAnswer(text) {
+    if (!text) return null;
+    const str = String(text);
+    const match = str.match(/\/detail\/([a-f0-9]{32})/i)
+        || str.match(/\(https?:\/\/[^)]*\/detail\/([a-f0-9]{32})/i)
+        || str.match(/\b([a-f0-9]{32})\b/i);
+    return match ? match[1] : null;
+}
+
 function extractAddedProductNameFromText(text) {
     const normalized = normalizeAssistantText(text);
     if (!normalized) return null;
@@ -366,6 +379,30 @@ function extractAddedProductNameFromText(text) {
         }
     }
 
+    return null;
+}
+
+/**
+ * Extract product name from user message for add-to-cart intent.
+ * E.g. "put Medicom SafeSeal in basket" -> "Medicom SafeSeal"
+ */
+function extractProductNameFromUserMessage(text) {
+    const t = String(text || '').trim();
+    if (!t) return null;
+    const lower = t.toLowerCase();
+    const patterns = [
+        /\b(?:put|add|lege|pack|nimm|rein|füge\s+hinzu)\s+(.+?)\s+(?:in\s+(?:den\s+)?(?:warenkorb|basket)|zum\s+warenkorb)\b/i,
+        /\b(?:in\s+den\s+warenkorb|zum\s+warenkorb)\s+(?:legen|packen|hinzufügen)?\s*[:\s]*\s*(.+?)(?:\s*[.!?]|$)/i,
+        /\b(?:add|put)\s+(.+?)\s+to\s+(?:my\s+)?(?:cart|basket)\b/i,
+        /(.+?)\s+(?:bitte\s+)?(?:in\s+den\s+warenkorb|zum\s+warenkorb)\b/i
+    ];
+    for (const re of patterns) {
+        const match = t.match(re);
+        if (match && match[1]) {
+            const cleaned = cleanProductNameCandidate(match[1]);
+            if (cleaned && cleaned.length >= 3) return cleaned;
+        }
+    }
     return null;
 }
 
@@ -426,6 +463,11 @@ function writeSse(res, payload) {
 
 function emitCartActions(res, cartActions) {
     if (!Array.isArray(cartActions) || !cartActions.length) return;
+    log('CHAT', 'Emitting cart_actions', {
+        count: cartActions.length,
+        types: cartActions.map(a => a?.type),
+        productIds: cartActions.map(a => (a?.productId || '').slice(0, 8))
+    });
     writeSse(res, { cart_action: cartActions[0] });
     writeSse(res, { cart_actions: cartActions });
 }
@@ -468,9 +510,16 @@ router.post('/stream', async (req, res) => {
         extra_instructions
     } = body;
 
-    const userMessage = String(message || '').trim();
+        const userMessage = String(message || '').trim();
     let resolvedContextToken = resolveContextToken(req, { bodyKeys: ['context_token', 'contextToken'] }).token;
     const cookieHeader = req.headers.cookie || '';
+
+    log('CHAT', 'Stream start', {
+        user,
+        hasContextToken: !!resolvedContextToken,
+        contextTokenSource: resolvedContextToken ? 'body/header/cookie' : 'none',
+        hasCookie: !!cookieHeader
+    });
 
     if (!message && !image) {
         return res.status(400).json({ error: 'Message or image is required' });
@@ -528,7 +577,21 @@ router.post('/stream', async (req, res) => {
             }
         }
 
-        log('CHAT', `User: ${user} | LoggedIn: ${customerInfo.loggedIn} | Cart: ${cart?.itemCount || 0} | Orders: ${orders.length}`);
+        // Use cart from body if present; otherwise fetch when we have a context token (guest or logged-in)
+        let effectiveCart = cart;
+        if ((!effectiveCart || !effectiveCart.items) && resolvedContextToken) {
+            try {
+                const fetched = await shopware.getCart(resolvedContextToken, req.tenant);
+                if (fetched?.items) {
+                    effectiveCart = fetched;
+                    if (fetched.contextToken && fetched.contextToken !== resolvedContextToken) {
+                        resolvedContextToken = fetched.contextToken;
+                    }
+                }
+            } catch (_) {}
+        }
+
+        log('CHAT', `User: ${user} | LoggedIn: ${customerInfo.loggedIn} | Cart: ${effectiveCart?.itemCount || 0} | Orders: ${orders.length}`);
 
         // ---------------------------------------------------------------------
         // Deterministic selection flow (from last Dify product list)
@@ -563,17 +626,18 @@ router.post('/stream', async (req, res) => {
         }
 
         const numericChoice = parseNumericChoice(userMessage);
-        if (numericChoice !== null) {
-            const listEntry = productListTracker.getList(req.tenant?.id, user);
-            if (listEntry?.items?.length) {
-                const item = listEntry.items[numericChoice - 1];
-                if (!item) {
-                    writeSse(res, { text: `Bitte wählen Sie eine Zahl zwischen 1 und ${listEntry.items.length}.` });
-                    emitConversationId(res, conversation_id);
-                    res.write('data: [DONE]\n\n');
-                    clearInterval(keepalive);
-                    return res.end();
-                }
+        const listEntry = productListTracker.getList(req.tenant?.id, user);
+        const maxReasonableChoice = 20;
+        const isReasonableListIndex = numericChoice !== null && numericChoice >= 1 && numericChoice <= maxReasonableChoice;
+        if (isReasonableListIndex && listEntry?.items?.length) {
+            const item = listEntry.items[numericChoice - 1];
+            if (!item) {
+                writeSse(res, { text: `Bitte wählen Sie eine Zahl zwischen 1 und ${listEntry.items.length}.` });
+                emitConversationId(res, conversation_id);
+                res.write('data: [DONE]\n\n');
+                clearInterval(keepalive);
+                return res.end();
+            }
 
                 // Clear any stale pending confirmation before setting a new one
                 productListTracker.clearPending(req.tenant?.id, user);
@@ -645,23 +709,23 @@ router.post('/stream', async (req, res) => {
                 res.write('data: [DONE]\n\n');
                 clearInterval(keepalive);
                 return res.end();
-            } else {
-                log('CHAT', 'Numeric choice but no product list', {
-                    choice: numericChoice,
-                    user,
-                    tenant: req.tenant?.id || 'default'
-                });
-            }
+        }
+        if (numericChoice !== null && !listEntry?.items?.length && numericChoice <= maxReasonableChoice) {
+            log('CHAT', 'Numeric choice but no product list', {
+                choice: numericChoice,
+                user,
+                tenant: req.tenant?.id || 'default'
+            });
         }
 
         // ---------------------------------------------------------------------
         // Deterministic removal flow (match cart item from user message)
         // ---------------------------------------------------------------------
-        if (isRemoveIntent(userMessage) && Array.isArray(cart?.items) && cart.items.length) {
-            let item = findCartItemMatch(userMessage, cart.items);
+        if (isRemoveIntent(userMessage) && Array.isArray(effectiveCart?.items) && effectiveCart.items.length) {
+            let item = findCartItemMatch(userMessage, effectiveCart.items);
             const choice = parseNumericChoice(userMessage);
-            if (!item && choice && choice <= cart.items.length) {
-                item = cart.items[choice - 1];
+            if (!item && choice && choice <= effectiveCart.items.length) {
+                item = effectiveCart.items[choice - 1];
             }
 
             if (item) {
@@ -718,8 +782,8 @@ router.post('/stream', async (req, res) => {
                 return res.end();
             }
 
-            if (cart.items.length > 1) {
-                const lines = cart.items
+            if (effectiveCart.items.length > 1) {
+                const lines = effectiveCart.items
                     .slice(0, 5)
                     .map((ci, idx) => `${idx + 1}. ${ci.name || 'Artikel'}`)
                     .join('\n');
@@ -821,7 +885,7 @@ router.post('/stream', async (req, res) => {
             user,
             conversation_id,
             {
-                cart,
+                cart: effectiveCart,
                 orders,
                 customer: customerInfo.customer,
                 isLoggedIn: customerInfo.loggedIn,
@@ -920,39 +984,83 @@ router.post('/stream', async (req, res) => {
         // Cart actions (FIFO queue)
         // ---------------------------------------------------------------------
         let cartActions = getQueuedCartActions(user, req.tenant?.id);
+        let cartActionsSource = cartActions.length ? 'queue' : null;
 
         // Legacy marker fallback: [ADD_TO_CART:...], [REMOVE_FROM_CART:...], ...
         if (!cartActions.length) {
             const legacy = cartTracker.parseCartActionFromText(fullAnswer);
             if (legacy) {
                 cartActions = [legacy];
-                log('CHAT', `Legacy cart action parsed: ${legacy.type}`);
+                cartActionsSource = 'legacy_text';
+                log('CHAT', 'Legacy cart action parsed', { type: legacy.type });
             }
         }
 
-        // Compatibility fallback when Dify confirms add-to-cart text but no tool action exists.
+        // Compatibility fallback: infer from Dify answer or from user message ("put X in basket").
+        // Prefer product ID from Dify's answer (e.g. detail URL) so we skip slow Shopware search when Dify already found the product.
         if (!cartActions.length && (isAffirmative(userMessage) || isBuyIntent(userMessage))) {
-            const inferredName = extractAddedProductNameFromText(fullAnswer);
-            if (inferredName) {
-                const resolved = await shopware.resolveProductIdentifier(inferredName, 5, req.tenant);
-                if (resolved?.success && resolved.product?.id) {
+            const productIdFromAnswer = extractProductIdFromAnswer(fullAnswer);
+            if (productIdFromAnswer) {
+                const product = await shopware.getProduct(productIdFromAnswer, req.tenant);
+                if (product?.id) {
                     cartActions = [{
                         type: 'add',
-                        productId: resolved.product.id,
-                        productName: resolved.product.name || inferredName,
+                        productId: product.id,
+                        productName: product.name || 'Produkt',
                         quantity: 1
                     }];
-                    log('CHAT', 'Inferred add-to-cart fallback action', {
-                        productName: resolved.product.name || inferredName,
-                        productId: resolved.product.id
+                    cartActionsSource = 'inferred_from_answer_link';
+                    log('CHAT', 'Inferred add-to-cart from Dify answer link', {
+                        productId: product.id,
+                        productName: product.name
                     });
+                }
+            }
+            if (!cartActions.length) {
+                let inferredName = extractAddedProductNameFromText(fullAnswer);
+                if (!inferredName && isBuyIntent(userMessage)) {
+                    inferredName = extractProductNameFromUserMessage(userMessage);
+                    if (inferredName) log('CHAT', 'Inferred product name from user message', { inferredName });
+                }
+                if (inferredName) {
+                    const resolved = await shopware.resolveProductIdentifier(inferredName, 5, req.tenant);
+                    log('CHAT', 'Inference resolution result', {
+                        inferredName,
+                        success: !!resolved?.success,
+                        productId: resolved?.product?.id || null,
+                        error: resolved?.error || null
+                    });
+                    if (resolved?.success && resolved.product?.id) {
+                        cartActions = [{
+                            type: 'add',
+                            productId: resolved.product.id,
+                            productName: resolved.product.name || inferredName,
+                            quantity: 1
+                        }];
+                        cartActionsSource = inferredName === extractAddedProductNameFromText(fullAnswer) ? 'inferred_from_answer' : 'inferred_from_user_message';
+                        log('CHAT', 'Inferred add-to-cart', {
+                            inferredName,
+                            productId: resolved.product.id,
+                            productName: resolved.product.name,
+                            source: cartActionsSource
+                        });
+                    } else {
+                        log('CHAT', 'Inferred name but product not resolved', { inferredName, error: resolved?.error });
+                    }
                 }
             }
         }
 
-        if (cartActions.length) {
+        log('CHAT', 'Cart actions summary', {
+            count: cartActions.length,
+            source: cartActionsSource,
+            types: cartActions.map(a => a?.type)
+        });
+
+        if (!cartActions.length) {
+            log('CHAT', 'No cart actions to emit (queue empty, no legacy/inference from answer)');
+        } else {
             emitCartActions(res, cartActions);
-            log('CHAT', `Cart actions: ${cartActions.map(a => a.type).join(', ')}`);
         }
 
         if (req.tenant?.apiKeyUsed && Number.isFinite(tokensUsed)) {
@@ -972,7 +1080,7 @@ router.post('/stream', async (req, res) => {
             user,
             conversation_id,
             loggedIn: !!resolvedContextToken,
-            cartItems: cart?.itemCount || 0
+            cartItems: effectiveCart?.itemCount || 0
         });
 
         if (!res.headersSent) {

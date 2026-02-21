@@ -1,0 +1,91 @@
+<sw-page class="ccchatbot-stats">
+    <template #smart-bar-header>
+        <h2>CCChatbot Stats</h2>
+    </template>
+
+    <template #smart-bar-actions>
+        <sw-button variant="primary" :disabled="isLoading || !hasConfig" @click="loadStats">
+            Refresh
+        </sw-button>
+    </template>
+
+    <template #content>
+        <sw-card-view>
+            <sw-card v-if="!hasConfig" title="Configuration required">
+                <p>Please set Middleware URL and Middleware API Key in the CCChatbot plugin config.</p>
+            </sw-card>
+
+            <sw-card v-else title="Usage & Stats" :isLoading="isLoading">
+                <div v-if="error" class="ccchatbot-stats__error">{{ error }}</div>
+                <div v-else class="ccchatbot-stats__grid">
+                    <div class="ccchatbot-stats__card">
+                        <div class="label">Tokens Used</div>
+                        <div class="value">{{ statsSafe.tokensUsed || 0 }}</div>
+                    </div>
+                    <div class="ccchatbot-stats__card">
+                        <div class="label">Requests</div>
+                        <div class="value">{{ statsSafe.requestCount || 0 }}</div>
+                    </div>
+                    <div class="ccchatbot-stats__card">
+                        <div class="label">Total Messages</div>
+                        <div class="value">{{ statsSafe.totalMessages || 0 }}</div>
+                    </div>
+                    <div class="ccchatbot-stats__card">
+                        <div class="label">Total Sessions</div>
+                        <div class="value">{{ statsSafe.totalSessions || 0 }}</div>
+                    </div>
+                    <div class="ccchatbot-stats__card">
+                        <div class="label">Last Used</div>
+                        <div class="value">{{ formatDateTime(statsSafe.lastUsedAt) }}</div>
+                    </div>
+                    <div class="ccchatbot-stats__card">
+                        <div class="label">Last IP</div>
+                        <div class="value">{{ statsSafe.lastUsedIp || '-' }}</div>
+                    </div>
+                </div>
+            </sw-card>
+
+            <sw-card v-if="hasConfig" title="Chatbot Actions" :isLoading="isLoading">
+                <div v-if="!Object.keys(cartActions || {}).length" class="ccchatbot-stats__muted">
+                    No actions yet.
+                </div>
+                <table v-else class="ccchatbot-stats__table">
+                    <thead>
+                        <tr>
+                            <th>Action</th>
+                            <th>Count</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr v-for="(count, action) in cartActions" :key="action">
+                            <td>{{ action }}</td>
+                            <td>{{ count }}</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </sw-card>
+
+            <sw-card v-if="hasConfig" title="Top Questions" :isLoading="isLoading">
+                <div v-if="!topQuestions.length" class="ccchatbot-stats__muted">
+                    No questions yet.
+                </div>
+                <table v-else class="ccchatbot-stats__table">
+                    <thead>
+                        <tr>
+                            <th>Question</th>
+                            <th>Count</th>
+                            <th>Last Asked</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr v-for="q in topQuestions" :key="q.question + q.count">
+                            <td>{{ q.question }}</td>
+                            <td>{{ q.count }}</td>
+                            <td>{{ formatDateTime(q.lastAsked) }}</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </sw-card>
+        </sw-card-view>
+    </template>
+</sw-page>
