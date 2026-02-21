@@ -11,6 +11,34 @@
       <defaultValue>true</defaultValue>
     </input-field>
 
+    <input-field type="single-select">
+      <name>visibilityMode</name>
+      <label>Who can see the chatbot</label>
+      <helpText>Everyone: all visitors. Customers only: only logged-in customers. Specific customer: only the customer with the ID below (for testing).</helpText>
+      <options>
+        <option>
+          <id>everyone</id>
+          <name>Everyone</name>
+        </option>
+        <option>
+          <id>customers_only</id>
+          <name>Customers only (logged-in)</name>
+        </option>
+        <option>
+          <id>specific_customer</id>
+          <name>Specific customer (for testing)</name>
+        </option>
+      </options>
+      <defaultValue>everyone</defaultValue>
+    </input-field>
+
+    <input-field>
+      <name>specificCustomerId</name>
+      <label>Specific customer ID (testing)</label>
+      <helpText>Only used when "Who can see the chatbot" is "Specific customer". Paste the customer UUID from Admin → Customers (e.g. from the customer detail URL).</helpText>
+      <defaultValue></defaultValue>
+    </input-field>
+
     <input-field>
       <name>middlewareUrl</name>
       <label>Middleware URL</label>

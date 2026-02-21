@@ -6,7 +6,17 @@
 
 {% block layout_head_inner %}
     {{ parent() }}
-    {% if config('CCChatbot.config.enabled') %}
+    {% set ccEnabled = config('CCChatbot.config.enabled') %}
+    {% set visibilityMode = config('CCChatbot.config.visibilityMode') ?: 'everyone' %}
+    {% set specificCustomerId = (config('CCChatbot.config.specificCustomerId') ?: '')|trim %}
+    {% set isLoggedInCustomer = context.customer is not null %}
+    {% set customerIdMatches = specificCustomerId != '' and isLoggedInCustomer and context.customer.id == specificCustomerId %}
+    {% set ccVisible = ccEnabled and (
+        visibilityMode == 'everyone'
+        or (visibilityMode == 'customers_only' and isLoggedInCustomer)
+        or (visibilityMode == 'specific_customer' and customerIdMatches)
+    ) %}
+    {% if ccVisible %}
         {% sw_include '@CCChatbot/storefront/ccchatbot/chatbot.html.twig' %}
     {% endif %}
 {% endblock %}
