@@ -90,10 +90,11 @@ async function refreshContextToken(contextToken, cookieHeader, tenant = null) {
             };
         };
 
-        let result = await tryRequest('POST');
+        // Shopware 6 Store API often expects PATCH for context; try PATCH first to avoid extra round trip.
+        let result = await tryRequest('PATCH');
         if (result.status === 405) {
-            log('SHOPWARE', 'Context refresh: POST not allowed, retrying PATCH');
-            result = await tryRequest('PATCH');
+            log('SHOPWARE', 'Context refresh: PATCH not allowed, retrying POST');
+            result = await tryRequest('POST');
         }
 
         return {
@@ -452,6 +453,9 @@ async function verifyCustomerSession(contextToken, tenant = null) {
     }
 }
 
+// Cart cache: short TTL so add/remove shows soon; reduces repeated Shopware calls when frontend polls.
+const CART_CACHE_TTL_MS = 4000;
+
 /**
  * Get cart summary from Store API using sw-context-token.
  * Works for guests and logged-in customers.
@@ -460,6 +464,11 @@ async function getCart(contextToken, tenant = null) {
     if (!contextToken) {
         return { items: [], itemCount: 0, total: 0, contextToken: null };
     }
+
+    const tenantKey = tenant?.id ? `t${tenant.id}` : 'default';
+    const cacheKey = `cart:${tenantKey}:${contextToken}`;
+    const cached = cacheGet(cacheKey);
+    if (cached) return cached;
 
     try {
         const sw = getShopwareConfig(tenant);
@@ -493,16 +502,25 @@ async function getCart(contextToken, tenant = null) {
 
         const itemCount = items.reduce((sum, item) => sum + (item.quantity || 0), 0);
         const total = Number(data?.price?.totalPrice) || items.reduce((sum, item) => sum + (item.totalPrice || 0), 0);
-        return { items, itemCount, total, contextToken: headerContextToken || bodyContextToken || contextToken };
+        const result = { items, itemCount, total, contextToken: headerContextToken || bodyContextToken || contextToken };
+        cacheSet(cacheKey, result, CART_CACHE_TTL_MS);
+        return result;
     } catch (e) {
         return { items: [], itemCount: 0, total: 0, contextToken: contextToken || null };
     }
 }
 
+const SHOP_INFO_CACHE_TTL_MS = 2 * 60 * 1000; // 2 min; shipping/payment methods change rarely
+
 /**
  * Shipping methods (optionally language-aware, context-aware for costs)
  */
 async function getShippingMethods(contextToken, tenant = null, languageId = null) {
+    const tenantKey = tenant?.id ? `t${tenant.id}` : 'default';
+    const cacheKey = `shipping:${tenantKey}:${languageId || 'default'}`;
+    const cached = cacheGet(cacheKey);
+    if (cached) return cached;
+
     try {
         const sw = getShopwareConfig(tenant);
         const response = await fetchWithTimeout(`${sw.url}/store-api/checkout/shipping-method`, {
@@ -517,7 +535,7 @@ async function getShippingMethods(contextToken, tenant = null, languageId = null
 
         const data = await response.json();
         const elements = data.elements || [];
-        return elements.map(m => ({
+        const result = elements.map(m => ({
             id: m.id,
             name: m.name,
             description: stripHtml(m.description || ''),
@@ -525,6 +543,8 @@ async function getShippingMethods(contextToken, tenant = null, languageId = null
             priceFormatted: m.price?.gross ? formatPrice(m.price.gross) : null,
             active: m.active !== false
         }));
+        cacheSet(cacheKey, result, SHOP_INFO_CACHE_TTL_MS);
+        return result;
     } catch (_) {
         return [];
     }
@@ -534,6 +554,11 @@ async function getShippingMethods(contextToken, tenant = null, languageId = null
  * Payment methods (optionally language-aware)
  */
 async function getPaymentMethods(contextToken, tenant = null, languageId = null) {
+    const tenantKey = tenant?.id ? `t${tenant.id}` : 'default';
+    const cacheKey = `payment:${tenantKey}:${languageId || 'default'}`;
+    const cached = cacheGet(cacheKey);
+    if (cached) return cached;
+
     try {
         const sw = getShopwareConfig(tenant);
         const response = await fetchWithTimeout(`${sw.url}/store-api/payment-method`, {
@@ -548,12 +573,14 @@ async function getPaymentMethods(contextToken, tenant = null, languageId = null)
 
         const data = await response.json();
         const elements = data.elements || [];
-        return elements.map(m => ({
+        const result = elements.map(m => ({
             id: m.id,
             name: m.name,
             description: stripHtml(m.description || ''),
             active: m.active !== false
         }));
+        cacheSet(cacheKey, result, SHOP_INFO_CACHE_TTL_MS);
+        return result;
     } catch (_) {
         return [];
     }

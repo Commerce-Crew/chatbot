@@ -9,6 +9,9 @@ const shopRepo = require('../repositories/shopRepository');
 
 const router = express.Router();
 
+/** Wrap async route handlers so rejections are passed to Express error handler (Express 4 does not catch them). */
+const asyncHandler = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
+
 function requireEnv(name) {
     const val = process.env[name];
     if (!val) throw new Error(`Missing ${name}`);
@@ -143,7 +146,7 @@ router.use(basicAuth);
 // ------------------------------------------------------------------
 // List tenants
 // ------------------------------------------------------------------
-router.get('/', async (req, res) => {
+router.get('/', asyncHandler(async (req, res) => {
     const rows = await tenantRepo.listTenantsWithUsage();
     const tableRows = rows.map(r => `
         <tr>
@@ -194,12 +197,12 @@ router.get('/', async (req, res) => {
     `;
 
     res.send(htmlLayout('Clients', body));
-});
+}));
 
 // ------------------------------------------------------------------
 // Leads list
 // ------------------------------------------------------------------
-router.get('/leads', async (req, res) => {
+router.get('/leads', asyncHandler(async (req, res) => {
     const tenantId = req.query.tenant_id ? parseInt(req.query.tenant_id, 10) : null;
     const limit = Math.min(parseInt(req.query.limit, 10) || 100, 500);
 
@@ -265,12 +268,12 @@ router.get('/leads', async (req, res) => {
     `;
 
     res.send(htmlLayout('Leads', body));
-});
+}));
 
 // ------------------------------------------------------------------
 // Shops list
 // ------------------------------------------------------------------
-router.get('/shops', async (req, res) => {
+router.get('/shops', asyncHandler(async (req, res) => {
     const tenantId = req.query.tenant_id ? parseInt(req.query.tenant_id, 10) : null;
     const shops = await shopRepo.listShops(tenantId);
 
@@ -333,12 +336,12 @@ router.get('/shops', async (req, res) => {
     `;
 
     res.send(htmlLayout('Shops', body));
-});
+}));
 
 // ------------------------------------------------------------------
 // New shop
 // ------------------------------------------------------------------
-router.get('/shops/new', async (req, res) => {
+router.get('/shops/new', asyncHandler(async (req, res) => {
     const tenantOptions = (await tenantRepo.listTenantsWithUsage())
         .map(t => `<option value="${t.id}">${escapeHtml(t.name)}</option>`)
         .join('');
@@ -422,9 +425,9 @@ router.get('/shops/new', async (req, res) => {
       </form>
     `;
     res.send(htmlLayout('Add shop', body));
-});
+}));
 
-router.post('/shops/new', async (req, res) => {
+router.post('/shops/new', asyncHandler(async (req, res) => {
     const {
         tenant_id,
         shop_id,
@@ -470,12 +473,12 @@ router.post('/shops/new', async (req, res) => {
     });
 
     res.redirect('/admin/shops');
-});
+}));
 
 // ------------------------------------------------------------------
 // Edit shop
 // ------------------------------------------------------------------
-router.get('/shops/edit/:id', async (req, res) => {
+router.get('/shops/edit/:id', asyncHandler(async (req, res) => {
     const id = req.params.id;
     const shop = await shopRepo.getShopByDbId(id);
     if (!shop) return res.status(404).send('Not found');
@@ -562,9 +565,9 @@ router.get('/shops/edit/:id', async (req, res) => {
       </form>
     `;
     res.send(htmlLayout(`Edit shop`, body));
-});
+}));
 
-router.post('/shops/edit/:id', async (req, res) => {
+router.post('/shops/edit/:id', asyncHandler(async (req, res) => {
     const id = req.params.id;
     const {
         tenant_id,
@@ -611,12 +614,12 @@ router.post('/shops/edit/:id', async (req, res) => {
     });
 
     res.redirect('/admin/shops');
-});
+}));
 
 // ------------------------------------------------------------------
 // Import shops from Shopware (sales channels)
 // ------------------------------------------------------------------
-router.get('/shops/import', async (req, res) => {
+router.get('/shops/import', asyncHandler(async (req, res) => {
     const tenantOptions = (await tenantRepo.listTenantsWithUsage())
         .map(t => `<option value="${t.id}">${escapeHtml(t.name)}</option>`)
         .join('');
@@ -674,9 +677,9 @@ router.get('/shops/import', async (req, res) => {
       </form>
     `;
     res.send(htmlLayout('Import shops', body));
-});
+}));
 
-router.post('/shops/import', async (req, res) => {
+router.post('/shops/import', asyncHandler(async (req, res) => {
     try {
         const {
             tenant_id,
@@ -741,7 +744,7 @@ router.post('/shops/import', async (req, res) => {
     } catch (e) {
         res.status(500).send('Import failed: ' + escapeHtml(e.message));
     }
-});
+}));
 
 // ------------------------------------------------------------------
 // New tenant form
@@ -816,7 +819,7 @@ router.get('/new', (req, res) => {
     res.send(htmlLayout('Create client', body));
 });
 
-router.post('/new', async (req, res) => {
+router.post('/new', asyncHandler(async (req, res) => {
     const {
         name,
         slug,
@@ -854,12 +857,12 @@ router.post('/new', async (req, res) => {
     });
 
     res.redirect('/admin');
-});
+}));
 
 // ------------------------------------------------------------------
 // Edit tenant
 // ------------------------------------------------------------------
-router.get('/edit/:id', async (req, res) => {
+router.get('/edit/:id', asyncHandler(async (req, res) => {
     const id = req.params.id;
     const r = await tenantRepo.getTenantWithSettingsById(id);
     if (!r) return res.status(404).send('Not found');
@@ -1001,9 +1004,9 @@ router.get('/edit/:id', async (req, res) => {
       </table>
     `;
     res.send(htmlLayout(`Edit ${escapeHtml(r.name)}`, body));
-});
+}));
 
-router.post('/edit/:id', async (req, res) => {
+router.post('/edit/:id', asyncHandler(async (req, res) => {
     const id = req.params.id;
     const {
         name,
@@ -1044,6 +1047,11 @@ router.post('/edit/:id', async (req, res) => {
     });
 
     res.redirect('/admin');
+}));
+
+router.use((err, req, res, next) => {
+    console.error('Admin route error', err);
+    res.status(500).send(htmlLayout('Error', `<p>Something went wrong.</p><pre>${escapeHtml(err.message)}</pre>`));
 });
 
 module.exports = router;

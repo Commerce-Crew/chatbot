@@ -13,7 +13,11 @@ services:
       - SW_ACCESS_KEY=${SW_ACCESS_KEY}
       - DIFY_URL=${DIFY_URL:-https://dify.commerce-crew.com}
       - DIFY_API_KEY=${DIFY_API_KEY}
-      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-https://dentalkiosk.de}
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-https://dentalkiosk.de,https://cbshop.commerce-crew.com,https://dentalkiosk.de}
+      - CORS_ENABLED=true
+      - CORS_ALLOW_ORIGIN=${ALLOWED_ORIGINS:-https://dentalkiosk.de,https://cbshop.commerce-crew.com,https://dentalkiosk.de}
+      - CORS_ALLOW_METHODS=GET,POST,PUT,DELETE,OPTIONS
+      - CORS_ALLOW_HEADERS=Content-Type,Authorization
       - DEBUG=${DEBUG:-false}
       - ADMIN_USER=${ADMIN_USER:-admin}
       - ADMIN_PASS=${ADMIN_PASS:-change-me}

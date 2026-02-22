@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node index.js",
     "dev": "nodemon --ignore src/routes/data/* index.js",
-    "seed:tenant": "node scripts/seed-tenant.js",
+    "seed:tenant": "node scripts/seed-tenant.js", 
+    "db:migrate": "docker exec -i ccchatmiddleware-db psql -U postgres -d ccchatmiddleware < src/db/schema.sql",
     "test": "jest --runInBand"
   },
   "dependencies": {

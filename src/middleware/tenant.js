@@ -3,6 +3,8 @@
  */
 const tenantRepo = require('../repositories/tenantRepository');
 const shopRepo = require('../repositories/shopRepository');
+const { log } = require('../utils/logger');
+const config = require('../config');
 
 function extractOrigin(req) {
     const origin = req.headers.origin || '';
@@ -30,13 +32,29 @@ module.exports = async function tenantResolver(req, res, next) {
         const bearer = rawAuth.toLowerCase().startsWith('bearer ')
             ? rawAuth.slice(7).trim()
             : '';
-        const apiKey = req.headers['x-cc-api-key'] || req.headers['x-api-key'] || bearer || null;
+        // Headers first, then query (so Dify can pass key in URL if it doesn't send headers)
+        const apiKey = req.headers['x-cc-api-key'] || req.headers['x-api-key'] || bearer
+            || (req.query && (req.query['x-cc-api-key'] || req.query['api_key'])) || null;
         const origin = extractOrigin(req);
         const shopId = req.headers['x-cc-shop-id'] || req.headers['x-shop-id'] || null;
 
         let apiKeyUsed = null;
         if (!apiKey) {
-            return res.status(401).json({ error: 'api_key_required' });
+            const authHeaders = {
+                'x-cc-api-key': !!(req.headers['x-cc-api-key']),
+                'x-api-key': !!(req.headers['x-api-key']),
+                'authorization': !!(req.headers['authorization']),
+                'query.api_key': !!(req.query && (req.query['x-cc-api-key'] || req.query['api_key']))
+            };
+            log('TENANT', `401 api_key_required path=${req.method} ${req.path}`, {
+                authHeadersPresent: authHeaders,
+                hint: 'Tool calls from Dify must send x-cc-api-key with the same value as CCChatbot middlewareApiKey.'
+            });
+            const body = { error: 'api_key_required' };
+            if (config.debug) {
+                body.hint = 'Send x-cc-api-key header with your tenant API key (same as CCChatbot plugin Middleware API Key).';
+            }
+            return res.status(401).json(body);
         }
 
         let tenant = await tenantRepo.getTenantByApiKey(apiKey);
@@ -44,6 +62,10 @@ module.exports = async function tenantResolver(req, res, next) {
             apiKeyUsed = apiKey;
         }
         if (!tenant) {
+            log('TENANT', `403 invalid_api_key path=${req.method} ${req.path}`, {
+                keyPresent: true,
+                hint: 'API key was sent but is not registered. Check tenant API key in admin or plugin config.'
+            });
             return res.status(403).json({ error: 'invalid_api_key' });
         }
 

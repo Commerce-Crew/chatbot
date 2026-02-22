@@ -30,7 +30,17 @@ Multi-tenant middleware that serves the Shopware 6 chatbot plugin and proxies to
    ```
 3. Initialize schema:
    ```bash
-   psql -h "$DB_HOST" -U "$DB_USER" -d "$DB_NAME" -f src/db/schema.sql
+   docker exec -i ccchatmiddleware-db psql -U postgres -d ccchatmiddleware < src/db/schema.sql
+   ```
+   Or add to `package.json` scripts:
+   ```json
+   "scripts": {
+     "db:migrate": "docker exec -i ccchatmiddleware-db psql -U postgres -d ccchatmiddleware < src/db/schema.sql"
+   }
+   ```
+   Then run:
+   ```bash
+   npm run db:migrate
    ```
 4. Seed first tenant:
    ```bash
@@ -62,6 +72,23 @@ Environment variables:
 - `ADMIN_USER`
 - `ADMIN_PASS`
 
+## Reverse proxy (Apache) and CORS
+
+When the middleware is behind Apache (or another reverse proxy), **do not set CORS headers in the proxy**. The middleware sets `Access-Control-Allow-Origin` and related headers per request. The storefront calls the API with `credentials: 'include'` (cookies); in that case the browser **forbids** `Access-Control-Allow-Origin: *` and requires a specific origin (e.g. `https://dentalkiosk.de`).
+
+If you see: *"The value of the 'Access-Control-Allow-Origin' header must not be the wildcard '\*' when the request's credentials mode is 'include'"*, remove the CORS headers from your Apache vhost so the middleware’s response is used as-is.
+
+**Remove these lines from your Apache SSL vhost** (e.g. `middleware-le-ssl.conf`):
+
+```apache
+Header always set Access-Control-Allow-Origin "*"
+Header always set Access-Control-Allow-Methods "GET,POST,PUT,DELETE,OPTIONS"
+Header always set Access-Control-Allow-Headers "Content-Type,Authorization"
+Header always set Access-Control-Allow-Credentials "true"
+```
+
+Then reload Apache (`sudo systemctl reload apache2` or `sudo apache2ctl graceful`). The middleware will continue to send the correct CORS headers (including the requesting origin when allowed).
+
 ## Tenant resolution
 
 1. **API Key** (preferred): `x-cc-api-key`, `x-api-key`, or `Authorization: Bearer <key>`
@@ -83,6 +110,23 @@ The plugin only needs:
 - `middlewareApiKey` (CommerceCrew-issued)
 
 The Dify API key stays in the middleware only.
+
+**Dify API tools (product search, cart, etc.)**  
+When you add the middleware as an API tool in Dify (e.g. from the OpenAPI spec), Dify’s backend calls the middleware for tool requests (e.g. `searchProducts`). Those requests must include the **tenant API key** or the middleware returns `401 api_key_required`. In Dify, configure the tool’s authentication:
+
+- **Authentication**: API Key  
+- **Header name**: `x-cc-api-key`  
+- **API Key**: same value as **Middleware API Key** in the CCChatbot plugin config (your tenant’s middleware API key from the admin dashboard or plugin settings).
+
+**Fallback:** If Dify does not send the header, the middleware also accepts the key in the URL as `api_key` or `x-cc-api-key`. Set the tool Server URL to e.g. `https://cbshop.commerce-crew.com?api_key=YOUR_TENANT_KEY` if your Dify preserves query params when calling paths.
+
+If the OpenAPI spec you import includes the `ApiKeyAuth` security scheme, Dify will show the auth field when adding the tool; otherwise set the header manually in the tool configuration.
+
+**Debugging 401 on tool calls**  
+When a tool call returns `401 api_key_required`, the middleware logs a `[TENANT]` line with which auth headers were present (e.g. `authHeadersPresent: { "x-cc-api-key": false, ... }`). Set `DEBUG=true` and restart the middleware to get a `hint` in the 401 JSON response. That confirms Dify is not sending `x-cc-api-key`; fix it in Dify’s API tool authentication settings.
+
+**Example (dentalkiosk.de)** — Shop: https://dentalkiosk.de/ | Middleware: https://cbshop.commerce-crew.com/ | Dify: https://dify.commerce-crew.com/  
+The same tenant key as in CCChatbot `middlewareApiKey` must be sent by Dify when calling the API tool (header `x-cc-api-key` or URL `?api_key=...`).
 
 Multi-shop support:
 - The Shopware plugin sends `x-cc-shop-id` using the current sales channel ID.

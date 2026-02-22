@@ -36,6 +36,10 @@ tags:
   - name: Health
     description: Health checks
 
+# Required for all endpoints except /api/health. Use the same key as in CCChatbot plugin (Middleware API Key).
+security:
+  - ApiKeyAuth: []
+
 paths:
   # ==========================================================================
   # HEALTH
@@ -841,6 +845,12 @@ paths:
 # COMPONENTS
 # ==========================================================================
 components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: x-cc-api-key
+      description: Tenant middleware API key (same value as in Shopware CCChatbot plugin config).
   parameters:
     ContextToken:
       name: sw-context-token
